@@ -1,4 +1,4 @@
-// --- main.js (Versión con Prueba Manual) ---
+// --- main.js (Versión Limpia y Final) ---
 
 /**
  * =======================================================
@@ -49,26 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- ¡NUEVA PRUEBA MANUAL AQUÍ! ---
-    const botonPruebaManual = document.getElementById('btn-test-manual');
-    if (botonPruebaManual) {
-        botonPruebaManual.addEventListener('click', () => {
-            console.log("Botón manual presionado. Pidiendo permiso...");
-            // Volvemos a pedir permiso por si acaso
-            Notification.requestPermission().then((permission) => {
-                if (permission === "granted") {
-                    console.log("Permiso OK. ¡Enviando notificación manual!");
-                    // Esta notificación SÍ debería funcionar porque
-                    // fue iniciada por un CLIC (toque) del usuario.
-                    new Notification("¡Prueba Manual Exitosa!", {
-                        body: "Esta notificación SÍ funciona."
-                    });
-                } else {
-                    alert("Permiso denegado. No se puede notificar.");
-                }
-            });
-        });
-    }
+    // --- Lógica de prueba manual ELIMINADA de aquí ---
 });
 
 
@@ -77,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
  * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
-// (Esta sección 3 queda idéntica, no la pego para abreviar)
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
     botonAgregar.addEventListener('click', () => {
@@ -119,7 +99,6 @@ if (botonAgregar) {
 * SECCIÓN 4: EL MOTOR DE NOTIFICACIONES
 * =======================================================
 */
-// (Esta sección 4 queda idéntica, no la pego para abreviar)
 function revisarRecordatorios() {
     const ahora = new Date();
     const horaActual = ahora.toLocaleTimeString('en-US', {
@@ -154,7 +133,12 @@ function revisarRecordatorios() {
         localStorage.setItem('recordatorios', JSON.stringify(recordatorios));
     }
 }
-setInterval(revisarRecordatorios, 10000); // Revisa cada 10 segundos
+
+// --- ¡CAMBIO AQUÍ! ---
+// Regresamos el temporizador a 60 segundos (60000 ms)
+// para que no gaste tanta batería en el celular.
+revisarRecordatorios();
+setInterval(revisarRecordatorios, 60000); // Revisa cada 60 segundos
 
 
 /**
@@ -162,7 +146,6 @@ setInterval(revisarRecordatorios, 10000); // Revisa cada 10 segundos
 * SECCIÓN 5: FUNCIONES PARA MOSTRAR DATOS (Dibujar HTML)
 * =======================================================
 */
-// (Esta sección 5 queda idéntica, no la pego para abreviar)
 function convertirHora24a12(hora24) {
     if (!hora24) return null;
     const [horas, minutos] = hora24.split(':');
@@ -193,12 +176,10 @@ function crearTarjetaRecordatorio(recordatorio) {
     const nombreLower = recordatorio.nombre.toLowerCase();
     if (nombreLower.includes('insulina') || nombreLower.includes('inye')) icon = 'syringe';
     if (nombreLower.includes('gota')) icon = 'water_drop';
-
     const textoHora = recordatorio.frecuencia === 'minuto' ? 'Ahora' : recordatorio.hora;
     const colorBarra = recordatorio.frecuencia === 'minuto' ? 'bg-warning' : 'bg-primary';
     const colorIcono = recordatorio.frecuencia === 'minuto' ? 'text-warning' : 'text-primary';
     const opacidad = recordatorio.completado ? 'opacity-50' : '';
-
     return `
         <div class="relative flex items-stretch gap-4 overflow-hidden rounded-xl bg-card-dark p-5 ${opacidad}">
             <div class="absolute left-0 top-0 h-full w-1.5 ${colorBarra}"></div>
@@ -294,7 +275,6 @@ function mostrarMedicamentosLista(contenedor) {
 * SECCIÓN 6: LÓGICA DE BORRAR
 * =======================================================
 */
-// (Esta sección 6 queda idéntica, no la pego para abreviar)
 function borrarRecordatorio(idParaBorrar) {
     if (!confirm("¿Estás seguro de que quieres borrar este medicamento?")) {
         return;
