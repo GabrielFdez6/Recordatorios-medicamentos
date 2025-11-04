@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+    <title>Ajustes de Perfil</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <link href="css/style.css" rel="stylesheet" />
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "warning": "#f59e0b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#0d0d0d",
+                        "card-dark": "#121212",
+                        "surface-dark": "#1c1c1e"
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-display text-white">
+
+    <div class="relative flex min-h-screen w-full flex-col">
+        <header
+            class="sticky top-0 z-10 flex h-16 items-center border-b border-white/10 bg-background-dark/80 px-4 backdrop-blur-sm">
+            <a href="medicamentos.html" class="flex size-12 shrink-0 items-center justify-center text-white">
+                <span class="material-symbols-outlined text-3xl">arrow_back</span>
+            </a>
+            <h1 class="flex-1 text-center text-xl font-bold text-white">Ajustes</h1>
+            <div class="size-12 shrink-0"></div>
+        </header>
+        <nav class="border-b border-white/10 bg-background-dark">
+            <div class="no-scrollbar flex space-x-2 overflow-x-auto px-4 py-3">
+                <a class="shrink-0 rounded-full bg-surface-dark px-5 py-2.5 text-base font-medium text-gray-300"
+                    href="medicamentos.html">Medicamentos</a>
+                <a class="shrink-0 rounded-full bg-surface-dark px-5 py-2.5 text-base font-medium text-gray-300"
+                    href="#">Calendario</a>
+                <a class="shrink-0 rounded-full bg-primary px-5 py-2.5 text-base font-bold text-white" href="#">Mi
+                    Perfil</a>
+                <a class="shrink-0 rounded-full bg-surface-dark px-5 py-2.5 text-base font-medium text-gray-300"
+                    href="#">Reportes</a>
+                <a class="shrink-0 rounded-full bg-surface-dark px-5 py-2.5 text-base font-medium text-gray-300"
+                    href="#">Ayuda</a>
+            </div>
+        </nav>
+        <main class="flex-1 pb-32">
+            <section class="flex flex-col items-center gap-4 p-6 @container">
+                <div class="relative">
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-32 w-32 border-2 border-primary"
+                        data-alt="Avatar de usuario con un fondo abstracto colorido"
+                        style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDg56TGJiGnhSaatSvH10aDthKFjpGOiR-AQkS-4VdaKBPDteSwfW9JZ0NyyEBLKCyUid5QZ5b4nSa7JtiHgr7vC_UUl1KoPj1pBwkWINfN4qH3t15voakynfQT_2N1VNsNmskreVBzYPryKydVd_WcVW9dp6pmFclbYgK9BZ4zGUTlKaSIB_hcIdCC3XdSIlgqqJ37jcId2z6NwYKd8mfH4xePHHfacDZ_wi5ySuuZatrBPuESENGcJwwxwVctbxgTWNJ9EV7dMw4");'>
+                    </div>
+                    <button
+                        class="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg">
+                        <span class="material-symbols-outlined">edit</span>
+                    </button>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-white">Carlos Pérez</p>
+                    <p class="text-base text-gray-400">carlos.perez@ejemplo.com</p>
+                </div>
+            </section>
+            <section class="flex flex-col gap-4 px-4 py-3">
+                <h2 class="text-lg font-bold text-white px-2 pt-2">Mi Perfil</h2>
+                <div>
+                    <label class="text-base font-medium text-gray-300 pb-2 block" for="fullName">Nombre Completo</label>
+                    <input
+                        class="form-input flex w-full resize-none overflow-hidden rounded-xl border border-slate-700 bg-surface-dark p-4 text-base font-normal text-white placeholder:text-slate-500 focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                        id="fullName" type="text" value="Carlos Pérez" />
+                </div>
+                <div>
+                    <label class="text-base font-medium text-gray-300 pb-2 block" for="email">Correo Electrónico</label>
+                    <input
+                        class="form-input flex w-full resize-none overflow-hidden rounded-xl border border-slate-700 bg-surface-dark p-4 text-base font-normal text-white placeholder:text-slate-500 focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                        id="email" type="email" value="carlos.perez@ejemplo.com" />
+                </div>
+            </section>
+            <section class="flex flex-col gap-4 px-4 py-3 mt-4">
+                <h2 class="text-lg font-bold text-white px-2 pt-2">Preferencias de Visualización</h2>
+                <div class="rounded-xl border border-slate-800 bg-surface-dark p-4">
+                    <label class="block text-base font-medium text-gray-300" for="fontSize">Tamaño de Fuente</label>
+                    <p class="text-lg font-medium text-white mt-4 mb-2">Este es un texto de ejemplo.</p>
+                    <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-slate-400">text_fields</span>
+                        <input class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-primary"
+                            id="fontSize" max="2" min="0" step="1" type="range" value="1" />
+                        <span class="material-symbols-outlined text-3xl text-slate-400">text_fields</span>
+                    </div>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-surface-dark p-4">
+                    <p class="block text-base font-medium text-gray-300 mb-3">Tema de la Aplicación</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button class="flex flex-col items-center gap-2 rounded-lg border-2 border-slate-700 p-3">
+                            <div
+                                class="flex h-12 w-full items-center justify-center rounded bg-background-light ring-1 ring-inset ring-slate-300">
+                                <span class="material-symbols-outlined text-3xl text-slate-800">light_mode</span>
+                            </div>
+                            <span class="font-medium text-gray-300">Claro</span>
+                        </button>
+                        <button
+                            class="flex flex-col items-center gap-2 rounded-lg border-2 border-primary p-3 bg-primary/10">
+                            <div
+                                class="flex h-12 w-full items-center justify-center rounded bg-background-dark ring-1 ring-inset ring-slate-700">
+                                <span class="material-symbols-outlined text-3xl text-white">dark_mode</span>
+                            </div>
+                            <span class="font-medium text-white">Oscuro</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <section class="flex flex-col gap-4 px-4 py-3 mt-4">
+                <h2 class="text-lg font-bold text-white px-2 pt-2">Asistencia por Voz</h2>
+                <div class="flex items-center justify-between rounded-xl border border-slate-800 bg-surface-dark p-4">
+                    <label class="flex flex-col" for="voice-toggle">
+                        <span class="text-base font-medium text-gray-300">Activar Ayuda por Voz</span>
+                        <span class="text-sm text-slate-400">Lee en voz alta las opciones</span>
+                    </label>
+                    <button aria-checked="true"
+                        class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-primary transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark"
+                        id="voice-toggle" role="switch">
+                        <span
+                            class="pointer-events-none inline-block h-7 w-7 translate-x-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+            </section>
+        </main>
+        <footer
+            class="fixed bottom-0 left-0 right-0 z-10 grid grid-cols-2 gap-4 border-t border-white/10 bg-background-dark/80 p-4 backdrop-blur-sm">
+            <button
+                class="flex w-full min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-surface-dark px-4 py-4 text-lg font-bold text-white shadow-lg">
+                <span class="truncate">Guardar</span>
+            </button>
+            <a href="agregar.html"
+                class="flex w-full min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-primary px-4 py-4 text-lg font-bold text-white shadow-lg">
+                <span class="truncate">Agregar</span>
+            </a>
+        </footer>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+
+</html>

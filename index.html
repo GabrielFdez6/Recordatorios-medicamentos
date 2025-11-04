@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Mis Recordatorios de Medicamentos</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+
+    <link href="css/style.css" rel="stylesheet" />
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "warning": "#f59e0b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#0d0d0d",
+                        "card-dark": "#121212",
+                        "surface-dark": "#1c1c1e"
+                    },
+                    fontFamily: { "display": ["Lexend", "sans-serif"] },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-display text-white">
+    <div class="relative flex min-h-screen w-full flex-col">
+        <header class="sticky top-0 z-10 bg-background-dark/80 pt-4 backdrop-blur-sm">
+            <div class="flex items-center justify-between px-4 pb-3">
+                <h1 class="text-2xl font-bold text-white">Recordatorios</h1>
+                <button
+                    class="flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-white">
+                    <span class="material-symbols-outlined text-2xl">volume_up</span>
+                    <span class="text-base font-bold">Guía</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 px-4 pb-40">
+            <div id="contenedor-recordatorios" class="flex flex-col gap-4 pt-6">
+            </div>
+        </main>
+
+        <div class="fixed bottom-0 left-0 right-0 z-10 bg-background-dark/80 p-4 pb-8 backdrop-blur-sm">
+            <a href="medicamentos.html"
+                class="flex w-full items-center justify-center gap-3 rounded-xl bg-primary py-5 text-xl font-bold text-white shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <span class="material-symbols-outlined text-3xl">add_circle</span>
+                <span>Agregar Recordatorio</span>
+            </a>
+        </div>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
