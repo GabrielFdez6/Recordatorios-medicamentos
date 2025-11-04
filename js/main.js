@@ -1,3 +1,5 @@
+// --- main.js (Versión con Prueba Manual) ---
+
 /**
  * =======================================================
  * SECCIÓN 1: PERMISOS DE NOTIFICACIÓN
@@ -46,6 +48,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // --- ¡NUEVA PRUEBA MANUAL AQUÍ! ---
+    const botonPruebaManual = document.getElementById('btn-test-manual');
+    if (botonPruebaManual) {
+        botonPruebaManual.addEventListener('click', () => {
+            console.log("Botón manual presionado. Pidiendo permiso...");
+            // Volvemos a pedir permiso por si acaso
+            Notification.requestPermission().then((permission) => {
+                if (permission === "granted") {
+                    console.log("Permiso OK. ¡Enviando notificación manual!");
+                    // Esta notificación SÍ debería funcionar porque
+                    // fue iniciada por un CLIC (toque) del usuario.
+                    new Notification("¡Prueba Manual Exitosa!", {
+                        body: "Esta notificación SÍ funciona."
+                    });
+                } else {
+                    alert("Permiso denegado. No se puede notificar.");
+                }
+            });
+        });
+    }
 });
 
 
@@ -54,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
+// (Esta sección 3 queda idéntica, no la pego para abreviar)
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
     botonAgregar.addEventListener('click', () => {
@@ -95,6 +119,7 @@ if (botonAgregar) {
 * SECCIÓN 4: EL MOTOR DE NOTIFICACIONES
 * =======================================================
 */
+// (Esta sección 4 queda idéntica, no la pego para abreviar)
 function revisarRecordatorios() {
     const ahora = new Date();
     const horaActual = ahora.toLocaleTimeString('en-US', {
@@ -104,6 +129,7 @@ function revisarRecordatorios() {
     });
 
     console.log(`Revisando... ${horaActual}`);
+
     let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     let listaHaCambiado = false;
 
@@ -128,8 +154,6 @@ function revisarRecordatorios() {
         localStorage.setItem('recordatorios', JSON.stringify(recordatorios));
     }
 }
-
-// Lo volvemos a poner en 10 segundos para que tus pruebas de "cada minuto" sean rápidas
 setInterval(revisarRecordatorios, 10000); // Revisa cada 10 segundos
 
 
@@ -138,8 +162,7 @@ setInterval(revisarRecordatorios, 10000); // Revisa cada 10 segundos
 * SECCIÓN 5: FUNCIONES PARA MOSTRAR DATOS (Dibujar HTML)
 * =======================================================
 */
-
-// --- Función Auxiliar para convertir 24h a 12h ---
+// (Esta sección 5 queda idéntica, no la pego para abreviar)
 function convertirHora24a12(hora24) {
     if (!hora24) return null;
     const [horas, minutos] = hora24.split(':');
@@ -151,8 +174,6 @@ function convertirHora24a12(hora24) {
         hour12: true
     });
 }
-
-// --- Función Auxiliar para ordenar por hora ---
 function convertirHoraA24(horaStr) {
     if (!horaStr || !horaStr.includes(' ')) {
         return 9999;
@@ -164,13 +185,9 @@ function convertirHoraA24(horaStr) {
     if (ampm === 'AM' && horas === 12) horas = 0;
     return (horas * 100) + parseInt(minutos, 10);
 }
-
-// --- Título reutilizable para las secciones ---
 function crearTitulo(titulo) {
     return `<h2 class="text-3xl font-bold leading-tight tracking-[-0.015em] text-white pt-6 pb-2">${titulo}</h2>`;
 }
-
-// --- Tarjeta de recordatorio reutilizable ---
 function crearTarjetaRecordatorio(recordatorio) {
     let icon = 'pill';
     const nombreLower = recordatorio.nombre.toLowerCase();
@@ -180,8 +197,6 @@ function crearTarjetaRecordatorio(recordatorio) {
     const textoHora = recordatorio.frecuencia === 'minuto' ? 'Ahora' : recordatorio.hora;
     const colorBarra = recordatorio.frecuencia === 'minuto' ? 'bg-warning' : 'bg-primary';
     const colorIcono = recordatorio.frecuencia === 'minuto' ? 'text-warning' : 'text-primary';
-
-    // Si está completado, lo mostramos semitransparente
     const opacidad = recordatorio.completado ? 'opacity-50' : '';
 
     return `
@@ -197,47 +212,32 @@ function crearTarjetaRecordatorio(recordatorio) {
             </div>
         </div>`;
 }
-
-
-// --- ¡FUNCIÓN PRINCIPAL MODIFICADA! ---
 function mostrarRecordatoriosIndex(contenedor) {
     const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     contenedor.innerHTML = '';
-
-    // 1. Clasificamos los recordatorios en tres grupos
     const recurrentes = recordatorios.filter(r => r.frecuencia === 'minuto');
     const proximos = recordatorios.filter(r => r.frecuencia !== 'minuto' && !r.completado);
     const completados = recordatorios.filter(r => r.frecuencia !== 'minuto' && r.completado);
-
-    // 2. Ordenamos los próximos por hora
     proximos.sort((a, b) => convertirHoraA24(a.hora) - convertirHoraA24(b.hora));
-
     let htmlFinal = '';
-
-    // 3. Generamos el HTML para cada grupo
-
     if (recurrentes.length > 0) {
         htmlFinal += crearTitulo("Recurrentes (Prueba)");
         recurrentes.forEach(r => {
             htmlFinal += crearTarjetaRecordatorio(r);
         });
     }
-
     if (proximos.length > 0) {
         htmlFinal += crearTitulo("Próximos");
         proximos.forEach(r => {
             htmlFinal += crearTarjetaRecordatorio(r);
         });
     }
-
     if (completados.length > 0) {
         htmlFinal += crearTitulo("Completados");
         completados.forEach(r => {
             htmlFinal += crearTarjetaRecordatorio(r);
         });
     }
-
-    // 4. Si todos los grupos están vacíos, mostramos el mensaje
     if (htmlFinal === '') {
         contenedor.innerHTML = `
             <div class="rounded-xl bg-card-dark p-5 text-center">
@@ -245,37 +245,27 @@ function mostrarRecordatoriosIndex(contenedor) {
                 <p class="text-sm text-zinc-500">Usa el botón "Agregar Recordatorio" para empezar.</p>
             </div>`;
     } else {
-        // 5. Insertamos todo el HTML generado
         contenedor.innerHTML = htmlFinal;
     }
 }
-
-// --- Función para dibujar en medicamentos.html ---
 function mostrarMedicamentosLista(contenedor) {
     const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     contenedor.innerHTML = '';
-
     if (recordatorios.length === 0) {
         contenedor.innerHTML = `<div class="rounded-xl bg-zinc-900 p-5 text-center"><p class="text-lg text-gray-400">No hay medicamentos guardados.</p></div>`;
     }
-
-    // Ordenamos para que los más nuevos aparezcan primero
     recordatorios.sort((a, b) => b.id - a.id);
-
     recordatorios.forEach(recordatorio => {
         let icon = 'pill';
         const nombreLower = recordatorio.nombre.toLowerCase();
         if (nombreLower.includes('insulina') || nombreLower.includes('inye')) icon = 'syringe';
         if (nombreLower.includes('gota')) icon = 'water_drop';
-
         let textoFrecuencia = recordatorio.hora || '';
         if (recordatorio.frecuencia === 'minuto') {
             textoFrecuencia = 'Cada 1 minuto';
         }
-
         const colorIcono = recordatorio.frecuencia === 'minuto' ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary';
         const opacidad = recordatorio.completado ? 'opacity-50' : '';
-
         const cardHTML = `
             <div class="flex cursor-pointer items-center gap-4 rounded-xl bg-zinc-900 p-4 ${opacidad}">
                 <div class="flex size-14 shrink-0 items-center justify-center rounded-lg ${colorIcono}">
@@ -298,11 +288,13 @@ function mostrarMedicamentosLista(contenedor) {
     });
 }
 
+
 /**
 * =======================================================
 * SECCIÓN 6: LÓGICA DE BORRAR
 * =======================================================
 */
+// (Esta sección 6 queda idéntica, no la pego para abreviar)
 function borrarRecordatorio(idParaBorrar) {
     if (!confirm("¿Estás seguro de que quieres borrar este medicamento?")) {
         return;
@@ -312,7 +304,7 @@ function borrarRecordatorio(idParaBorrar) {
     const nuevosRecordatorios = recordatorios.filter(r => r.id != idParaBorrar);
     localStorage.setItem('recordatorios', JSON.stringify(nuevosRecordatorios));
 
-    // Recargamos ambas vistas por si acaso
+    // Recargamos ambas vistas
     const contenedorMedicamentos = document.getElementById('contenedor-medicamentos');
     if (contenedorMedicamentos) {
         mostrarMedicamentosLista(contenedorMedicamentos);
