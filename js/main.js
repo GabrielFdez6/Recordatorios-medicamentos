@@ -76,22 +76,38 @@ if (botonAgregar) {
             return;
         }
 
-        // --- ¡LÓGICA CORREGIDA AQUÍ! ---
-        // 1. Partimos la fecha y hora para evitar problemas de zona horaria
+        // --- ¡LÓGICA MEJORADA: CÁLCULO DE LA PRÓXIMA DOSIS VÁLIDA! ---
+
+        // 1. Obtenemos el "ahora"
+        const ahoraTimestamp = Date.now();
+
+        // 2. Partimos la fecha y hora seleccionada por el usuario
         const partesFecha = fechaInicio.split('-').map(Number); // [2025, 11, 04]
         const partesHora = horaInicio.split(':').map(Number); // [19, 15]
 
-        // 2. Creamos una fecha local vacía
+        // 3. Creamos la fecha de inicio que el usuario seleccionó
         const fechaHoraInicio = new Date();
-
-        // 3. Establecemos los componentes localmente
-        // (el mes es 0-indexado, por eso 'partesFecha[1] - 1')
         fechaHoraInicio.setFullYear(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
         fechaHoraInicio.setHours(partesHora[0], partesHora[1], 0, 0); // (hora, min, seg, ms)
 
-        // 4. AHORA SÍ obtenemos el timestamp local correcto
-        const proximaDosisTimestamp = fechaHoraInicio.getTime();
-        // --- FIN DE LA CORRECCIÓN ---
+        // 4. Obtenemos el timestamp de esa hora de inicio
+        let proximaDosisTimestamp = fechaHoraInicio.getTime();
+
+        // 5. Obtenemos la frecuencia en milisegundos
+        const frecuenciaEnMS = parseInt(frecuenciaMed, 10) * 60000;
+
+        // 6. ¡EL BUCLE INTELIGENTE!
+        //    Mientras la hora de inicio que calculamos ya haya pasado...
+        while (proximaDosisTimestamp <= ahoraTimestamp) {
+            // ...calculamos la siguiente dosis sumando la frecuencia.
+            console.log(`La hora ${new Date(proximaDosisTimestamp).toLocaleString()} ya pasó. Calculando la siguiente...`);
+            proximaDosisTimestamp += frecuenciaEnMS;
+        }
+
+        // 7. ¡Ahora 'proximaDosisTimestamp' es la primera hora válida EN EL FUTURO!
+        console.log(`Próxima dosis válida calculada para: ${new Date(proximaDosisTimestamp).toLocaleString()}`);
+
+        // --- FIN DE LA LÓGICA MEJORADA ---
 
 
         let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
@@ -100,7 +116,7 @@ if (botonAgregar) {
             nombre: nombreMed,
             dosis: dosisMed,
             frecuencia: parseInt(frecuenciaMed, 10),
-            proximaDosis: proximaDosisTimestamp, // ¡Guardamos el timestamp local!
+            proximaDosis: proximaDosisTimestamp, // ¡Guardamos el timestamp futuro correcto!
             completado: false
         };
 
@@ -253,8 +269,7 @@ function mostrarMedicamentosLista(contenedor) {
 }
 
 function crearTitulo(titulo) {
-    // Añadimos un poco más de margen superior (pt-4) para separarlo
-    return `<h2 class="text-lg font-bold text-zinc-400 px-2 pt-4">${titulo}</h2>`;
+    return `<h2 class="text-xl font-bold text-white pt-4">${titulo}</h2>`;
 }
 
 function crearTarjetaRecordatorio(recordatorio) {
