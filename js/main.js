@@ -148,14 +148,8 @@ function revisarRecordatorios() {
                 body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`
             });
 
-            // Si es 'minuto', actualiza la próxima dosis para 1 min en el futuro
-            if (recordatorio.frecuencia === 1) { // 1 minuto
-                recordatorio.proximaDosis = ahoraTimestamp + (recordatorio.frecuencia * 60000);
-            } else {
-                // Si no, calcula la próxima dosis normal (ej. +12 horas)
-                const frecuenciaEnMS = recordatorio.frecuencia * 60000;
-                recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
-            }
+            const frecuenciaEnMS = recordatorio.frecuencia * 60000;
+            recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
 
             listaHaCambiado = true;
         }
