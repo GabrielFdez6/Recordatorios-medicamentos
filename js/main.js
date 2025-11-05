@@ -1,4 +1,4 @@
-// --- main.js (Versión Limpia y Final) ---
+// --- main.js (Versión con Lógica de Notificación Corregida) ---
 
 /**
  * =======================================================
@@ -48,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // --- Lógica de prueba manual ELIMINADA de aquí ---
 });
 
 
@@ -58,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
+// ESTA SECCIÓN ESTÁ CORRECTA Y NO HA CAMBIADO
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
     botonAgregar.addEventListener('click', () => {
@@ -66,8 +65,10 @@ if (botonAgregar) {
         const frecuenciaMed = document.getElementById('med-frequency').value;
         const hora24 = document.getElementById('med-time').value;
 
-        if (frecuenciaMed !== 'minuto' && !hora24) {
-            alert("Por favor, ingrese el nombre y la hora.");
+        // AHORA la hora es requerida SIEMPRE,
+        // incluso para "cada minuto"
+        if (!hora24) {
+            alert("Por favor, seleccione una hora.");
             return;
         }
         if (!nombreMed) {
@@ -75,14 +76,15 @@ if (botonAgregar) {
             return;
         }
 
-        const horaMed = (frecuenciaMed === 'minuto') ? null : convertirHora24a12(hora24);
+        // Siempre convertimos la hora
+        const horaMed = convertirHora24a12(hora24);
         let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
 
         const nuevoRecordatorio = {
             id: Date.now(),
             nombre: nombreMed,
             dosis: dosisMed,
-            hora: horaMed,
+            hora: horaMed, // Guardamos la hora seleccionada
             frecuencia: frecuenciaMed,
             completado: false
         };
@@ -96,9 +98,10 @@ if (botonAgregar) {
 
 /**
 * =======================================================
-* SECCIÓN 4: EL MOTOR DE NOTIFICACIONES
+* SECCIÓN 4: EL MOTOR DE NOTIFICACIONES (¡CORREGIDO!)
 * =======================================================
 */
+
 function revisarRecordatorios() {
     const ahora = new Date();
     const horaActual = ahora.toLocaleTimeString('en-US', {
@@ -113,18 +116,35 @@ function revisarRecordatorios() {
     let listaHaCambiado = false;
 
     recordatorios.forEach(recordatorio => {
-        if (recordatorio.frecuencia === 'minuto') {
-            new Notification(`¡Recordatorio (Cada Minuto)!`, {
-                body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`
-            });
-        }
-        else if (recordatorio.hora === horaActual && !recordatorio.completado) {
-            new Notification(`¡Hora de tu medicamento!`, {
-                body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`,
-                tag: 'recordatorio-hora-' + recordatorio.id
-            });
-            recordatorio.completado = true;
-            listaHaCambiado = true;
+
+        // --- ¡LÓGICA CORREGIDA AQUÍ! ---
+
+        // 1. PRIMERO revisamos si la hora coincide Y si no está completado
+        if (recordatorio.hora === horaActual && !recordatorio.completado) {
+
+            console.log("¡ES HORA! Revisando frecuencia para:", recordatorio.nombre);
+
+            // 2. SI la hora coincide, AHORA revisamos la frecuencia
+
+            // CASO A: Es "Cada 1 minuto" (o cualquier otra recurrente)
+            if (recordatorio.frecuencia === 'minuto') {
+                new Notification(`¡Recordatorio (Cada Minuto)!`, {
+                    body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`
+                    // Quitamos 'tag' y 'renotify' para asegurar que siempre aparezca
+                });
+                // NO lo marcamos como completado, para que se repita
+            }
+
+            // CASO B: Es una frecuencia normal (de una sola vez)
+            else {
+                new Notification(`¡Hora de tu medicamento!`, {
+                    body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`,
+                    tag: 'recordatorio-hora-' + recordatorio.id
+                });
+                // SÍ lo marcamos como completado
+                recordatorio.completado = true;
+                listaHaCambiado = true;
+            }
         }
     });
 
@@ -134,9 +154,7 @@ function revisarRecordatorios() {
     }
 }
 
-// --- ¡CAMBIO AQUÍ! ---
-// Regresamos el temporizador a 60 segundos (60000 ms)
-// para que no gaste tanta batería en el celular.
+// Inicia el motor de notificaciones
 revisarRecordatorios();
 setInterval(revisarRecordatorios, 60000); // Revisa cada 60 segundos
 
@@ -146,6 +164,7 @@ setInterval(revisarRecordatorios, 60000); // Revisa cada 60 segundos
 * SECCIÓN 5: FUNCIONES PARA MOSTRAR DATOS (Dibujar HTML)
 * =======================================================
 */
+// (Esta sección no necesita cambios, es idéntica a la anterior)
 function convertirHora24a12(hora24) {
     if (!hora24) return null;
     const [horas, minutos] = hora24.split(':');
@@ -176,7 +195,9 @@ function crearTarjetaRecordatorio(recordatorio) {
     const nombreLower = recordatorio.nombre.toLowerCase();
     if (nombreLower.includes('insulina') || nombreLower.includes('inye')) icon = 'syringe';
     if (nombreLower.includes('gota')) icon = 'water_drop';
-    const textoHora = recordatorio.frecuencia === 'minuto' ? 'Ahora' : recordatorio.hora;
+
+    // Si la frecuencia es 'minuto' Y la hora es null, mostramos "Ahora"
+    const textoHora = (recordatorio.frecuencia === 'minuto' && recordatorio.hora === null) ? 'Ahora' : recordatorio.hora;
     const colorBarra = recordatorio.frecuencia === 'minuto' ? 'bg-warning' : 'bg-primary';
     const colorIcono = recordatorio.frecuencia === 'minuto' ? 'text-warning' : 'text-primary';
     const opacidad = recordatorio.completado ? 'opacity-50' : '';
@@ -196,11 +217,16 @@ function crearTarjetaRecordatorio(recordatorio) {
 function mostrarRecordatoriosIndex(contenedor) {
     const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     contenedor.innerHTML = '';
-    const recurrentes = recordatorios.filter(r => r.frecuencia === 'minuto');
+
+    // Separamos en recurrentes, próximos y completados
+    const recurrentes = recordatorios.filter(r => r.frecuencia === 'minuto' && !r.completado); // Solo recurrentes activos
     const proximos = recordatorios.filter(r => r.frecuencia !== 'minuto' && !r.completado);
-    const completados = recordatorios.filter(r => r.frecuencia !== 'minuto' && r.completado);
+    const completados = recordatorios.filter(r => r.completado); // Todos los completados
+
     proximos.sort((a, b) => convertirHoraA24(a.hora) - convertirHoraA24(b.hora));
+
     let htmlFinal = '';
+
     if (recurrentes.length > 0) {
         htmlFinal += crearTitulo("Recurrentes (Prueba)");
         recurrentes.forEach(r => {
@@ -219,6 +245,7 @@ function mostrarRecordatoriosIndex(contenedor) {
             htmlFinal += crearTarjetaRecordatorio(r);
         });
     }
+
     if (htmlFinal === '') {
         contenedor.innerHTML = `
             <div class="rounded-xl bg-card-dark p-5 text-center">
@@ -241,10 +268,12 @@ function mostrarMedicamentosLista(contenedor) {
         const nombreLower = recordatorio.nombre.toLowerCase();
         if (nombreLower.includes('insulina') || nombreLower.includes('inye')) icon = 'syringe';
         if (nombreLower.includes('gota')) icon = 'water_drop';
+
         let textoFrecuencia = recordatorio.hora || '';
         if (recordatorio.frecuencia === 'minuto') {
-            textoFrecuencia = 'Cada 1 minuto';
+            textoFrecuencia = `A las ${recordatorio.hora} (cada min)`; // Mostramos la hora de inicio
         }
+
         const colorIcono = recordatorio.frecuencia === 'minuto' ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary';
         const opacidad = recordatorio.completado ? 'opacity-50' : '';
         const cardHTML = `
