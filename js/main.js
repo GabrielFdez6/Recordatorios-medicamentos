@@ -1,4 +1,21 @@
-// --- main.js (Versión con Dosis en Blanco) ---
+// --- main.js (Versión con Selector de Tema Funcional) ---
+
+/**
+ * =======================================================
+ * SECCIÓN 0: CARGADOR DE TEMA (¡NUEVO!)
+ * Se ejecuta de inmediato para evitar parpadeo.
+ * =======================================================
+ */
+(function () {
+    // 1. Obtiene el tema guardado o usa 'dark' por defecto.
+    const theme = localStorage.getItem('theme') || 'dark';
+    const html = document.documentElement;
+    // 2. Limpia temas viejos
+    html.classList.remove('dark', 'light', 'high-contrast');
+    // 3. Aplica el tema actual
+    html.classList.add(theme);
+})();
+
 
 /**
  * =======================================================
@@ -19,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // SECCIÓN 2: LÓGICA DE QUÉ PÁGINA MOSTRAR
     // =======================================================
-    // (Esta sección no ha cambiado)
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
         mostrarRecordatoriosIndex(contenedorRecordatorios);
@@ -56,6 +72,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ===== ¡NUEVA LÓGICA PARA EL SELECTOR DE TEMA! =====
+    const themeSelector = document.getElementById('theme-selector');
+    if (themeSelector) {
+        const lightBtn = document.getElementById('btn-theme-light');
+        const darkBtn = document.getElementById('btn-theme-dark');
+        const contrastBtn = document.getElementById('btn-theme-contrast');
+        const buttons = [lightBtn, darkBtn, contrastBtn];
+
+        const inactiveClasses = 'border-slate-700';
+        const activeClasses = 'border-primary bg-primary/10';
+
+        // Función para actualizar el estado visual de los botones
+        function updateButtonState(currentTheme) {
+            buttons.forEach(btn => {
+                btn.classList.remove(activeClasses, activeClasses.replace('border-', 'border-'));
+                btn.classList.add(inactiveClasses);
+            });
+
+            if (currentTheme === 'light') {
+                lightBtn.classList.add(activeClasses);
+                lightBtn.classList.remove(inactiveClasses);
+            } else if (currentTheme === 'dark') {
+                darkBtn.classList.add(activeClasses);
+                darkBtn.classList.remove(inactiveClasses);
+            } else if (currentTheme === 'high-contrast') {
+                contrastBtn.classList.add(activeClasses);
+                contrastBtn.classList.remove(inactiveClasses);
+            }
+        }
+
+        // 1. Poner el estado visual correcto al cargar la página
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        updateButtonState(savedTheme);
+
+        // 2. Añadir listeners para cambiar el tema
+        lightBtn.addEventListener('click', () => setTheme('light'));
+        darkBtn.addEventListener('click', () => setTheme('dark'));
+        contrastBtn.addEventListener('click', () => setTheme('high-contrast'));
+
+        function setTheme(theme) {
+            // 1. Aplicar al HTML
+            const html = document.documentElement;
+            html.classList.remove('dark', 'light', 'high-contrast');
+            html.classList.add(theme);
+
+            // 2. Guardar en localStorage
+            localStorage.setItem('theme', theme);
+
+            // 3. Actualizar botones
+            updateButtonState(theme);
+        }
+    }
+    // ===================================================
+
     const timeButton = document.getElementById('btn-time-picker');
     const timeInput = document.getElementById('med-time');
     if (timeButton && timeInput) {
@@ -71,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
  * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
-// (Esta sección no ha cambiado)
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
     botonAgregar.addEventListener('click', async () => {
@@ -132,7 +201,6 @@ if (botonAgregar) {
 * SECCIÓN 4: EL MOTOR DE NOTIFICACIONES Y ACTUALIZACIÓN
 * =======================================================
 */
-// (Esta sección no ha cambiado)
 function revisarRecordatorios() {
     const ahoraTimestamp = Date.now();
     let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
@@ -174,7 +242,6 @@ setInterval(cicloPrincipal, 60000);
 * SECCIÓN 5: FUNCIONES PARA MOSTRAR DATOS (Dibujar HTML)
 * =======================================================
 */
-// (Esta función no ha cambiado, usa los textos grandes de las otras funciones)
 function mostrarRecordatoriosIndex(contenedor) {
     const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     contenedor.innerHTML = '';
@@ -204,20 +271,16 @@ function mostrarRecordatoriosIndex(contenedor) {
     }
 
     if (htmlFinal === '') {
-        // 'text-xl' (del paso anterior)
         contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-xl text-zinc-400">No tienes recordatorios programados.</p></div>`;
     } else {
         contenedor.innerHTML = htmlFinal;
     }
 }
 
-// (Esta función no ha cambiado, usa los textos grandes del paso anterior)
 function crearTitulo(titulo) {
-    // 'text-3xl' (del paso anterior)
     return `<h2 class="text-3xl font-bold text-white pt-6">${titulo}</h2>`;
 }
 
-// ===== ¡FUNCIÓN MODIFICADA! (Color de Dosis) =====
 function crearTarjetaRecordatorio(recordatorio) {
     let icon = 'pill';
     const nombreLower = recordatorio.nombre.toLowerCase();
@@ -269,7 +332,6 @@ function crearTarjetaRecordatorio(recordatorio) {
 * SECCIÓN 6: LÓGICA DE BORRAR
 * =======================================================
 */
-// (Esta sección no ha cambiado)
 function borrarRecordatorio(idParaBorrar) {
     if (!confirm("¿Estás seguro de que quieres borrar este medicamento?")) {
         return;

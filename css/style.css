@@ -42,3 +42,111 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     display: none;
     -webkit-appearance: none;
 }
+
+
+/* =================================== */
+/* TEMA DE ALTO CONTRASTE (¡NUEVO!) */
+/* =================================== */
+
+/* Fondo principal y color de texto */
+html.high-contrast body {
+    background-color: #000000 !important;
+    color: #FFFFFF !important;
+}
+
+/* Fondos de componentes */
+html.high-contrast .bg-background-dark,
+html.high-contrast .dark\:bg-background-dark,
+html.high-contrast .bg-gray-900 {
+    background-color: #000000 !important;
+}
+
+html.high-contrast .bg-card-dark {
+    background-color: #000000 !important;
+    border: 2px solid #FFFF00 !important;
+    /* Borde amarillo brillante */
+}
+
+html.high-contrast .bg-surface-dark {
+    background-color: #000000 !important;
+    border: 2px solid #FFFFFF !important;
+    /* Borde blanco */
+}
+
+html.high-contrast .bg-zinc-800 {
+    background-color: #000000 !important;
+    border: 1px solid #FFFFFF !important;
+}
+
+/* Textos */
+html.high-contrast .text-white,
+html.high-contrast .text-gray-300,
+html.high-contrast .text-gray-400,
+html.high-contrast .text-zinc-200,
+html.high-contrast .text-zinc-400,
+html.high-contrast .text-slate-400 {
+    color: #FFFFFF !important;
+}
+
+/* Colores primarios (Cambiados a Amarillo) */
+html.high-contrast .bg-primary {
+    background-color: #FFFF00 !important;
+    /* Amarillo */
+    color: #000000 !important;
+    /* Texto negro para contraste */
+}
+
+html.high-contrast .text-primary {
+    color: #FFFF00 !important;
+    /* Amarillo */
+}
+
+html.high-contrast .border-primary {
+    border-color: #FFFF00 !important;
+    /* Amarillo */
+}
+
+html.high-contrast .bg-primary\/10 {
+    background-color: rgba(255, 255, 0, 0.15) !important;
+}
+
+html.high-contrast .accent-primary {
+    accent-color: #FFFF00 !important;
+}
+
+/* Colores de advertencia (Naranja brillante) */
+html.high-contrast .text-warning {
+    color: #FFA500 !important;
+}
+
+html.high-contrast .bg-warning {
+    background-color: #FFA500 !important;
+}
+
+/* Bordes */
+html.high-contrast .border-white\/10,
+html.high-contrast .border-slate-700,
+html.high-contrast .border-slate-800,
+html.high-contrast .border-zinc-600,
+html.high-contrast .border-gray-700 {
+    border-color: #FFFFFF !important;
+    /* Bordes blancos */
+}
+
+/* Headers y Footers */
+html.high-contrast .backdrop-blur-sm {
+    backdrop-filter: none !important;
+}
+
+html.high-contrast .bg-background-dark\/80 {
+    background-color: #000000 !important;
+    border-bottom: 2px solid #FFFF00;
+    /* Borde amarillo para headers */
+}
+
+/* Botón de eliminar */
+html.high-contrast .text-red-400 {
+    color: #FF4D4D !important;
+    /* Rojo más brillante */
+    font-weight: 700 !important;
+}
