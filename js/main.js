@@ -129,12 +129,14 @@ if (botonAgregar) {
 
 /**
 * =======================================================
-* SECCIÓN 4: EL MOTOR DE NOTIFICACIONES
+* SECCIÓN 4: EL MOTOR DE NOTIFICACIONES Y ACTUALIZACIÓN
 * =======================================================
 */
+
+// Esta función SÓLO revisa notificaciones y actualiza el localStorage
 function revisarRecordatorios() {
     const ahoraTimestamp = Date.now();
-    console.log(`Revisando... ${new Date(ahoraTimestamp).toLocaleTimeString()}`);
+    console.log(`Revisando notificaciones... ${new Date(ahoraTimestamp).toLocaleTimeString()}`);
     let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     let listaHaCambiado = false;
 
@@ -162,11 +164,30 @@ function revisarRecordatorios() {
     if (listaHaCambiado) {
         console.log("Actualizando 'proximaDosis' en localStorage.");
         localStorage.setItem('recordatorios', JSON.stringify(recordatorios));
+        // (Nota: Quitamos el refresco de UI que habíamos puesto aquí antes,
+        // porque ahora se hará en el 'cicloPrincipal')
     }
 }
 
+// --- ¡NUEVA FUNCIÓN AÑADIDA! ---
+// Esta función SÓLO refresca la UI de index.html si estamos en ella
+function refrescarListaIndex() {
+    const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
+    if (contenedorRecordatorios) {
+        // console.log("Refrescando UI de index.html..."); // (Puedes descomentar esto para pruebas)
+        mostrarRecordatoriosIndex(contenedorRecordatorios);
+    }
+}
+
+// --- ¡INTERVALO MODIFICADO! ---
+// Este es el nuevo "master" loop que se ejecuta cada 60 segundos
+function cicloPrincipal() {
+    revisarRecordatorios(); // Paso 1: Revisa notificaciones
+    refrescarListaIndex();  // Paso 2: Refresca la UI de la página principal
+}
+
 // Volvemos a ponerlo en 60 segundos (valor de producción)
-setInterval(revisarRecordatorios, 60000);
+setInterval(cicloPrincipal, 60000);
 
 
 /**
