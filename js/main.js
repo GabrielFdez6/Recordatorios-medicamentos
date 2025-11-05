@@ -1,16 +1,20 @@
-// --- main.js (Versión Corregida para iOS) ---
+// --- main.js (Versión Corregida: Arreglo de Zona Horaria) ---
 
 /**
  * =======================================================
- * SECCIÓN 1: PERMISOS DE NOTIFICACIÓN (¡CAMBIADO!)
+ * SECCIÓN 1: PERMISOS Y LÓGICA DE INICIO
  * =======================================================
  */
 document.addEventListener('DOMContentLoaded', () => {
-    //
-    // ¡CAMBIO!
-    // La lógica de 'requestPermission()' se ha ELIMINADO de aquí.
-    // iOS no nos deja pedir permisos al cargar la página.
-    //
+    if ("Notification" in window) {
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then((permission) => {
+                if (permission === "granted") {
+                    new Notification("¡Gracias!", { body: "Ahora recibirás tus recordatorios." });
+                }
+            });
+        }
+    }
 
     // =======================================================
     // SECCIÓN 2: LÓGICA DE QUÉ PÁGINA MOSTRAR
@@ -26,10 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarMedicamentosLista(contenedorMedicamentos);
         contenedorMedicamentos.addEventListener('click', (event) => {
             const botonBorrar = event.target.closest('.btn-borrar');
-            if (botonBorrar) {
-                const idParaBorrar = botonBorrar.dataset.id;
-                borrarRecordatorio(idParaBorrar);
-            }
+            if (botonBorrar) borrarRecordatorio(botonBorrar.dataset.id);
         });
     }
 
@@ -37,11 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeInput = document.getElementById('med-time');
     if (timeButton && timeInput) {
         timeButton.addEventListener('click', () => {
-            try {
-                timeInput.showPicker();
-            } catch (error) {
-                timeInput.focus();
-            }
+            try { timeInput.showPicker(); } catch (error) { timeInput.focus(); }
         });
     }
 });
@@ -49,50 +46,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /**
  * =======================================================
- * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR" (¡CAMBIADO!)
+ * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR" (¡CORREGIDA!)
  * =======================================================
  */
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
-
-    // ¡CAMBIO! Convertimos la función a 'async' para poder usar 'await'
     botonAgregar.addEventListener('click', async () => {
 
-        // --- ¡NUEVA LÓGICA DE PERMISOS PARA IOS! ---
-        console.log("Botón 'Agregar' presionado. Verificando permisos...");
         let permission = Notification.permission;
-
-        // 1. Si el permiso es 'default', lo pedimos AHORA (esto funciona en iOS)
         if (permission === "default") {
             console.log("Permiso 'default'. Solicitando...");
-            // 'await' pausa el código hasta que el usuario elija "Permitir" o "Bloquear"
             permission = await Notification.requestPermission();
         }
-
-        // 2. Si el usuario denegó el permiso, detenemos todo
         if (permission === "denied") {
             alert("No has dado permiso para notificaciones. Para que funcione, debes activarlo en los Ajustes de tu iPhone.");
-            return; // Detiene la ejecución
+            return;
         }
-        // --- FIN DE LA NUEVA LÓGICA ---
 
-
-        // 3. Si el permiso está 'granted' (concedido), continuamos...
         console.log("Permiso OK. Guardando recordatorio...");
 
         const nombreMed = document.getElementById('med-name').value;
         const dosisMed = document.getElementById('med-dose').value;
         const frecuenciaMed = document.getElementById('med-frequency').value;
-        const hora24 = document.getElementById('med-time').value;
-        const fechaInicio = document.getElementById('med-date').value;
+        const fechaInicio = document.getElementById('med-date').value; // ej: "2025-11-04"
+        const horaInicio = document.getElementById('med-time').value; // ej: "19:15"
 
-        if (!nombreMed || !frecuenciaMed || !fechaInicio || !hora24) {
+        if (!nombreMed || !frecuenciaMed || !fechaInicio || !horaInicio) {
             alert("Por favor, rellena todos los campos: nombre, frecuencia, fecha y hora.");
             return;
         }
 
-        const fechaHoraInicio = new Date(`${fechaInicio}T${hora24}`);
+        // --- ¡LÓGICA CORREGIDA AQUÍ! ---
+        // 1. Partimos la fecha y hora para evitar problemas de zona horaria
+        const partesFecha = fechaInicio.split('-').map(Number); // [2025, 11, 04]
+        const partesHora = horaInicio.split(':').map(Number); // [19, 15]
+
+        // 2. Creamos una fecha local vacía
+        const fechaHoraInicio = new Date();
+
+        // 3. Establecemos los componentes localmente
+        // (el mes es 0-indexado, por eso 'partesFecha[1] - 1')
+        fechaHoraInicio.setFullYear(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
+        fechaHoraInicio.setHours(partesHora[0], partesHora[1], 0, 0); // (hora, min, seg, ms)
+
+        // 4. AHORA SÍ obtenemos el timestamp local correcto
         const proximaDosisTimestamp = fechaHoraInicio.getTime();
+        // --- FIN DE LA CORRECCIÓN ---
+
 
         let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
         const nuevoRecordatorio = {
@@ -100,7 +100,7 @@ if (botonAgregar) {
             nombre: nombreMed,
             dosis: dosisMed,
             frecuencia: parseInt(frecuenciaMed, 10),
-            proximaDosis: proximaDosisTimestamp,
+            proximaDosis: proximaDosisTimestamp, // ¡Guardamos el timestamp local!
             completado: false
         };
 
@@ -130,8 +130,15 @@ function revisarRecordatorios() {
                 body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`
             });
 
-            const frecuenciaEnMS = recordatorio.frecuencia * 60000;
-            recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
+            // Si es 'minuto', actualiza la próxima dosis para 1 min en el futuro
+            if (recordatorio.frecuencia === 1) { // 1 minuto
+                recordatorio.proximaDosis = ahoraTimestamp + (recordatorio.frecuencia * 60000);
+            } else {
+                // Si no, calcula la próxima dosis normal (ej. +12 horas)
+                const frecuenciaEnMS = recordatorio.frecuencia * 60000;
+                recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
+            }
+
             listaHaCambiado = true;
         }
     });
@@ -142,8 +149,8 @@ function revisarRecordatorios() {
     }
 }
 
-// Lo dejamos en 10 segundos para pruebas rápidas
-setInterval(revisarRecordatorios, 10000);
+// Volvemos a ponerlo en 60 segundos (valor de producción)
+setInterval(revisarRecordatorios, 60000);
 
 
 /**
@@ -160,9 +167,12 @@ function mostrarRecordatoriosIndex(contenedor) {
     const finHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59).getTime();
     const finManana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 23, 59, 59).getTime();
 
-    const hoy = recordatorios.filter(r => r.proximaDosis >= inicioHoy && r.proximaDosis <= finHoy);
-    const manana = recordatorios.filter(r => r.proximaDosis > finHoy && r.proximaDosis <= finManana);
-    const proximos = recordatorios.filter(r => r.proximaDosis > finManana);
+    // Filtramos los que ya pasaron
+    const recordatoriosActivos = recordatorios.filter(r => r.proximaDosis >= inicioHoy);
+
+    const hoy = recordatoriosActivos.filter(r => r.proximaDosis <= finHoy);
+    const manana = recordatoriosActivos.filter(r => r.proximaDosis > finHoy && r.proximaDosis <= finManana);
+    const proximos = recordatoriosActivos.filter(r => r.proximaDosis > finManana);
 
     hoy.sort((a, b) => a.proximaDosis - b.proximaDosis);
     manana.sort((a, b) => a.proximaDosis - b.proximaDosis);
@@ -208,13 +218,17 @@ function mostrarMedicamentosLista(contenedor) {
         const horaFormato = proximaDosisFecha.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
         let textoFrecuencia = `Próxima: ${proximaDosisFecha.toLocaleDateString()} a las ${horaFormato}`;
-        if (recordatorio.frecuencia === 1) {
+        if (recordatorio.frecuencia === 1) { // 1 minuto
             textoFrecuencia = `Cada 1 minuto (Inicia ${horaFormato})`;
         } else if (recordatorio.frecuencia === 720) {
             textoFrecuencia = `Cada 12 horas (Inicia ${horaFormato})`;
+        } else if (recordatorio.frecuencia === 480) {
+            textoFrecuencia = `Cada 8 horas (Inicia ${horaFormato})`;
+        } else if (recordatorio.frecuencia === 1440) {
+            textoFrecuencia = `Una vez al día (Inicia ${horaFormato})`;
         }
 
-        const colorIcono = recordatorio.frecuencia === 1 ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary';
+        const colorIcono = (recordatorio.frecuencia === 1) ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary';
 
         const cardHTML = `
             <div class="flex cursor-pointer items-center gap-4 rounded-xl bg-zinc-900 p-4">
