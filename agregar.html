@@ -38,7 +38,8 @@
 <body class="bg-background-light dark:bg-background-dark font-display text-white">
     <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
         <header class="flex items-center p-4 pb-2 justify-between sticky top-0 bg-background-dark z-10">
-            <a href="medicamentos.html" class="text-white flex size-12 shrink-0 items-center justify-center">
+
+            <a href="index.html" class="text-white flex size-12 shrink-0 items-center justify-center">
                 <span class="material-symbols-outlined text-3xl">arrow_back</span>
             </a>
             <h1 class="text-white text-xl font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">Añadir
@@ -84,12 +85,6 @@
                 </select>
             </div>
 
-            <!-- 
-                =================================
-                ¡CAMBIO AÑADIDO AQUÍ!
-                Añadimos un campo de FECHA de inicio.
-                =================================
-            -->
             <div class="flex flex-col">
                 <label class="text-gray-300 text-lg font-medium leading-normal pb-2" for="med-date">Fecha de
                     inicio</label>
@@ -115,13 +110,15 @@
             </div>
 
         </main>
-        <footer class="sticky bottom-0 bg-background-dark p-4 pt-6 space-y-4">
+
+        <footer class="sticky bottom-0 bg-background-dark p-4 pt-6 grid grid-cols-2 gap-4">
             <button id="btn-agregar"
                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary h-16 px-6 text-white text-lg font-bold">
                 <span>Agregar</span>
             </button>
-            <a href="medicamentos.html"
-                class="flex w-full items-center justify-center rounded-xl bg-transparent h-16 px-6 text-gray-400 text-lg font-medium">
+
+            <a href="index.html"
+                class="flex w-full items-center justify-center rounded-xl bg-surface-dark h-16 px-6 text-white text-lg font-bold text-center">
                 Cancelar
             </a>
         </footer>

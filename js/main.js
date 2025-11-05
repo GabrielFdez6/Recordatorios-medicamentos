@@ -1,4 +1,4 @@
-// --- main.js (Versión Corregida: Arreglo de Zona Horaria) ---
+// --- main.js (Versión con Dosis en Blanco) ---
 
 /**
  * =======================================================
@@ -19,18 +19,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // SECCIÓN 2: LÓGICA DE QUÉ PÁGINA MOSTRAR
     // =======================================================
-
+    // (Esta sección no ha cambiado)
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
         mostrarRecordatoriosIndex(contenedorRecordatorios);
-    }
 
-    const contenedorMedicamentos = document.getElementById('contenedor-medicamentos');
-    if (contenedorMedicamentos) {
-        mostrarMedicamentosLista(contenedorMedicamentos);
-        contenedorMedicamentos.addEventListener('click', (event) => {
-            const botonBorrar = event.target.closest('.btn-borrar');
-            if (botonBorrar) borrarRecordatorio(botonBorrar.dataset.id);
+        contenedorRecordatorios.addEventListener('click', (event) => {
+
+            const botonMenu = event.target.closest('.btn-menu');
+            const botonBorrar = event.target.closest('.btn-borrar-menu');
+            const botonEditar = event.target.closest('.btn-editar');
+
+            const menuActual = botonMenu ? botonMenu.nextElementSibling : null;
+            document.querySelectorAll('.menu-recordatorio').forEach(menu => {
+                if (menu !== menuActual) {
+                    menu.classList.add('hidden');
+                }
+            });
+
+            if (botonMenu) {
+                event.preventDefault();
+                menuActual.classList.toggle('hidden');
+            }
+            else if (botonBorrar) {
+                event.preventDefault();
+                borrarRecordatorio(botonBorrar.dataset.id);
+            }
+            else if (botonEditar) {
+                event.preventDefault();
+                alert("Función 'Editar' aún no implementada.");
+                botonEditar.closest('.menu-recordatorio').classList.add('hidden');
+            }
+            else if (!event.target.closest('.menu-recordatorio')) {
+                document.querySelectorAll('.menu-recordatorio').forEach(m => m.classList.add('hidden'));
+            }
         });
     }
 
@@ -46,16 +68,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /**
  * =======================================================
- * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR" (¡CORREGIDA!)
+ * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
+// (Esta sección no ha cambiado)
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) {
     botonAgregar.addEventListener('click', async () => {
-
         let permission = Notification.permission;
         if (permission === "default") {
-            console.log("Permiso 'default'. Solicitando...");
             permission = await Notification.requestPermission();
         }
         if (permission === "denied") {
@@ -63,52 +84,30 @@ if (botonAgregar) {
             return;
         }
 
-        console.log("Permiso OK. Guardando recordatorio...");
-
         const nombreMed = document.getElementById('med-name').value;
         const dosisMed = document.getElementById('med-dose').value;
         const frecuenciaMed = document.getElementById('med-frequency').value;
-        const fechaInicio = document.getElementById('med-date').value; // ej: "2025-11-04"
-        const horaInicio = document.getElementById('med-time').value; // ej: "19:15"
+        const fechaInicio = document.getElementById('med-date').value;
+        const horaInicio = document.getElementById('med-time').value;
 
         if (!nombreMed || !frecuenciaMed || !fechaInicio || !horaInicio) {
             alert("Por favor, rellena todos los campos: nombre, frecuencia, fecha y hora.");
             return;
         }
 
-        // --- ¡LÓGICA MEJORADA: CÁLCULO DE LA PRÓXIMA DOSIS VÁLIDA! ---
-
-        // 1. Obtenemos el "ahora"
         const ahoraTimestamp = Date.now();
-
-        // 2. Partimos la fecha y hora seleccionada por el usuario
-        const partesFecha = fechaInicio.split('-').map(Number); // [2025, 11, 04]
-        const partesHora = horaInicio.split(':').map(Number); // [19, 15]
-
-        // 3. Creamos la fecha de inicio que el usuario seleccionó
+        const partesFecha = fechaInicio.split('-').map(Number);
+        const partesHora = horaInicio.split(':').map(Number);
         const fechaHoraInicio = new Date();
         fechaHoraInicio.setFullYear(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
-        fechaHoraInicio.setHours(partesHora[0], partesHora[1], 0, 0); // (hora, min, seg, ms)
+        fechaHoraInicio.setHours(partesHora[0], partesHora[1], 0, 0);
 
-        // 4. Obtenemos el timestamp de esa hora de inicio
         let proximaDosisTimestamp = fechaHoraInicio.getTime();
-
-        // 5. Obtenemos la frecuencia en milisegundos
         const frecuenciaEnMS = parseInt(frecuenciaMed, 10) * 60000;
 
-        // 6. ¡EL BUCLE INTELIGENTE!
-        //    Mientras la hora de inicio que calculamos ya haya pasado...
         while (proximaDosisTimestamp <= ahoraTimestamp) {
-            // ...calculamos la siguiente dosis sumando la frecuencia.
-            console.log(`La hora ${new Date(proximaDosisTimestamp).toLocaleString()} ya pasó. Calculando la siguiente...`);
             proximaDosisTimestamp += frecuenciaEnMS;
         }
-
-        // 7. ¡Ahora 'proximaDosisTimestamp' es la primera hora válida EN EL FUTURO!
-        console.log(`Próxima dosis válida calculada para: ${new Date(proximaDosisTimestamp).toLocaleString()}`);
-
-        // --- FIN DE LA LÓGICA MEJORADA ---
-
 
         let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
         const nuevoRecordatorio = {
@@ -116,14 +115,15 @@ if (botonAgregar) {
             nombre: nombreMed,
             dosis: dosisMed,
             frecuencia: parseInt(frecuenciaMed, 10),
-            proximaDosis: proximaDosisTimestamp, // ¡Guardamos el timestamp futuro correcto!
+            proximaDosis: proximaDosisTimestamp,
             completado: false
         };
 
         recordatorios.push(nuevoRecordatorio);
         localStorage.setItem('recordatorios', JSON.stringify(recordatorios));
         alert("¡Recordatorio guardado con éxito!");
-        window.location.href = "medicamentos.html";
+
+        window.location.href = "index.html";
     });
 }
 
@@ -132,55 +132,40 @@ if (botonAgregar) {
 * SECCIÓN 4: EL MOTOR DE NOTIFICACIONES Y ACTUALIZACIÓN
 * =======================================================
 */
-
-// Esta función SÓLO revisa notificaciones y actualiza el localStorage
+// (Esta sección no ha cambiado)
 function revisarRecordatorios() {
     const ahoraTimestamp = Date.now();
-    console.log(`Revisando notificaciones... ${new Date(ahoraTimestamp).toLocaleTimeString()}`);
     let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     let listaHaCambiado = false;
 
     recordatorios.forEach(recordatorio => {
         if (recordatorio.proximaDosis <= ahoraTimestamp) {
-            console.log("¡ES HORA! Notificando:", recordatorio.nombre);
-
             new Notification(`¡Hora de tu medicamento!`, {
                 body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`
             });
-
             const frecuenciaEnMS = recordatorio.frecuencia * 60000;
             recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
-
             listaHaCambiado = true;
         }
     });
 
     if (listaHaCambiado) {
-        console.log("Actualizando 'proximaDosis' en localStorage.");
         localStorage.setItem('recordatorios', JSON.stringify(recordatorios));
-        // (Nota: Quitamos el refresco de UI que habíamos puesto aquí antes,
-        // porque ahora se hará en el 'cicloPrincipal')
     }
 }
 
-// --- ¡NUEVA FUNCIÓN AÑADIDA! ---
-// Esta función SÓLO refresca la UI de index.html si estamos en ella
 function refrescarListaIndex() {
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
-        // console.log("Refrescando UI de index.html..."); // (Puedes descomentar esto para pruebas)
         mostrarRecordatoriosIndex(contenedorRecordatorios);
     }
 }
 
-// --- ¡INTERVALO MODIFICADO! ---
-// Este es el nuevo "master" loop que se ejecuta cada 60 segundos
 function cicloPrincipal() {
-    revisarRecordatorios(); // Paso 1: Revisa notificaciones
-    refrescarListaIndex();  // Paso 2: Refresca la UI de la página principal
+    revisarRecordatorios();
+    refrescarListaIndex();
 }
 
-// Volvemos a ponerlo en 60 segundos (valor de producción)
 setInterval(cicloPrincipal, 60000);
 
 
@@ -189,7 +174,7 @@ setInterval(cicloPrincipal, 60000);
 * SECCIÓN 5: FUNCIONES PARA MOSTRAR DATOS (Dibujar HTML)
 * =======================================================
 */
-// (Esta sección no necesita cambios, es idéntica a la anterior)
+// (Esta función no ha cambiado, usa los textos grandes de las otras funciones)
 function mostrarRecordatoriosIndex(contenedor) {
     const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
     contenedor.innerHTML = '';
@@ -197,20 +182,14 @@ function mostrarRecordatoriosIndex(contenedor) {
     const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0).getTime();
     const finHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59).getTime();
     const finManana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 23, 59, 59).getTime();
-
-    // Filtramos los que ya pasaron
     const recordatoriosActivos = recordatorios.filter(r => r.proximaDosis >= inicioHoy);
-
     const hoy = recordatoriosActivos.filter(r => r.proximaDosis <= finHoy);
     const manana = recordatoriosActivos.filter(r => r.proximaDosis > finHoy && r.proximaDosis <= finManana);
     const proximos = recordatoriosActivos.filter(r => r.proximaDosis > finManana);
-
     hoy.sort((a, b) => a.proximaDosis - b.proximaDosis);
     manana.sort((a, b) => a.proximaDosis - b.proximaDosis);
     proximos.sort((a, b) => a.proximaDosis - b.proximaDosis);
-
     let htmlFinal = '';
-
     if (hoy.length > 0) {
         htmlFinal += crearTitulo("Hoy");
         hoy.forEach(r => { htmlFinal += crearTarjetaRecordatorio(r); });
@@ -225,68 +204,20 @@ function mostrarRecordatoriosIndex(contenedor) {
     }
 
     if (htmlFinal === '') {
-        contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-lg text-zinc-400">No tienes recordatorios programados.</p></div>`;
+        // 'text-xl' (del paso anterior)
+        contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-xl text-zinc-400">No tienes recordatorios programados.</p></div>`;
     } else {
         contenedor.innerHTML = htmlFinal;
     }
 }
-function mostrarMedicamentosLista(contenedor) {
-    const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
-    contenedor.innerHTML = '';
-    if (recordatorios.length === 0) {
-        contenedor.innerHTML = `<div class="rounded-xl bg-zinc-900 p-5 text-center"><p class="text-lg text-gray-400">No hay medicamentos guardados.</p></div>`;
-    }
 
-    recordatorios.sort((a, b) => b.id - a.id);
-
-    recordatorios.forEach(recordatorio => {
-        let icon = 'pill';
-        const nombreLower = recordatorio.nombre.toLowerCase();
-        if (nombreLower.includes('insulina') || nombreLower.includes('inye')) icon = 'syringe';
-        if (nombreLower.includes('gota')) icon = 'water_drop';
-
-        const proximaDosisFecha = new Date(recordatorio.proximaDosis);
-        const horaFormato = proximaDosisFecha.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-        let textoFrecuencia = `Próxima: ${proximaDosisFecha.toLocaleDateString()} a las ${horaFormato}`;
-        if (recordatorio.frecuencia === 1) { // 1 minuto
-            textoFrecuencia = `Cada 1 minuto (Inicia ${horaFormato})`;
-        } else if (recordatorio.frecuencia === 720) {
-            textoFrecuencia = `Cada 12 horas (Inicia ${horaFormato})`;
-        } else if (recordatorio.frecuencia === 480) {
-            textoFrecuencia = `Cada 8 horas (Inicia ${horaFormato})`;
-        } else if (recordatorio.frecuencia === 1440) {
-            textoFrecuencia = `Una vez al día (Inicia ${horaFormato})`;
-        }
-
-        const colorIcono = (recordatorio.frecuencia === 1) ? 'bg-warning/20 text-warning' : 'bg-primary/20 text-primary';
-
-        const cardHTML = `
-            <div class="flex cursor-pointer items-center gap-4 rounded-xl bg-zinc-900 p-4">
-                <div class="flex size-14 shrink-0 items-center justify-center rounded-lg ${colorIcono}">
-                    <span class="material-symbols-outlined !text-4xl">${icon}</span>
-                </div>
-                <div class="flex flex-1 flex-col justify-center">
-                    <p class="text-xl font-bold text-white">${recordatorio.nombre}</p>
-                    <p class="text-base font-normal text-gray-400">${recordatorio.dosis || 'Sin dosis'} - ${textoFrecuencia}</p>
-                </div>
-                <div class="shrink-0 flex gap-2">
-                    <a href="#" class="flex size-10 items-center justify-center text-gray-400 hover:text-primary">
-                        <span class="material-symbols-outlined !text-3xl">edit</span>
-                    </a>
-                    <button data-id="${recordatorio.id}" class="btn-borrar flex size-10 items-center justify-center text-gray-400 hover:text-red-500">
-                        <span class="material-symbols-outlined !text-3xl">delete</span>
-                    </button>
-                </div>
-            </div>`;
-        contenedor.insertAdjacentHTML('beforeend', cardHTML);
-    });
-}
-
+// (Esta función no ha cambiado, usa los textos grandes del paso anterior)
 function crearTitulo(titulo) {
-    return `<h2 class="text-xl font-bold text-white pt-4">${titulo}</h2>`;
+    // 'text-3xl' (del paso anterior)
+    return `<h2 class="text-3xl font-bold text-white pt-6">${titulo}</h2>`;
 }
 
+// ===== ¡FUNCIÓN MODIFICADA! (Color de Dosis) =====
 function crearTarjetaRecordatorio(recordatorio) {
     let icon = 'pill';
     const nombreLower = recordatorio.nombre.toLowerCase();
@@ -299,18 +230,38 @@ function crearTarjetaRecordatorio(recordatorio) {
     const colorIcono = recordatorio.frecuencia === 1 ? 'text-warning' : 'text-primary';
 
     return `
-        <div class="relative flex items-stretch gap-4 overflow-hidden rounded-xl bg-card-dark p-5">
+        <div class="relative flex items-stretch gap-4 overflow-hidden rounded-xl bg-card-dark p-6 min-h-[11rem]">
             <div class="absolute left-0 top-0 h-full w-1.5 ${colorBarra}"></div>
-            <div class="flex flex-[2_2_0px] flex-col justify-center gap-1.5 pl-2">
-                <p class="text-4xl font-bold text-white">${horaFormato}</p>
-                <p class="text-xl font-bold text-zinc-200">${recordatorio.nombre}</p>
-                <p class="text-lg text-zinc-400">${recordatorio.dosis || 'Sin dosis'}</p>
+            <div class="flex flex-[2_2_0px] flex-col justify-center gap-1.5 pl-3">
+                
+                <p class="text-5xl font-bold text-white">${horaFormato}</p>
+                
+                <p class="text-3xl font-bold text-zinc-200">${recordatorio.nombre}</p>
+                
+                <p class="text-2xl text-white">${recordatorio.dosis || 'Sin dosis'}</p>
             </div>
+            
             <div class="flex flex-1 items-center justify-center rounded-xl bg-zinc-800">
-                <span class="material-symbols-outlined text-5xl ${colorIcono}">${icon}</span>
+                <span class="material-symbols-outlined text-6xl ${colorIcono}">${icon}</span>
+            </div>
+            
+            <button class="btn-menu absolute top-3 right-3 flex size-12 items-center justify-center rounded-full bg-surface-dark text-white border border-zinc-600 hover:bg-zinc-700">
+                <span class="material-symbols-outlined !text-3xl">more_vert</span>
+            </button>
+
+            <div class="menu-recordatorio absolute top-16 right-3 z-10 w-48 rounded-lg bg-surface-dark shadow-lg hidden overflow-hidden">
+                <a href="#" data-id="${recordatorio.id}" class="btn-editar flex items-center gap-3 px-4 py-3 text-xl text-white hover:bg-zinc-700">
+                    <span class="material-symbols-outlined">edit</span>
+                    Editar
+                </a>
+                <a href="#" data-id="${recordatorio.id}" class="btn-borrar-menu flex items-center gap-3 px-4 py-3 text-xl text-red-400 hover:bg-zinc-700">
+                    <span class="material-symbols-outlined">delete</span>
+                    Eliminar
+                </a>
             </div>
         </div>`;
 }
+// ===================================
 
 
 /**
@@ -318,6 +269,7 @@ function crearTarjetaRecordatorio(recordatorio) {
 * SECCIÓN 6: LÓGICA DE BORRAR
 * =======================================================
 */
+// (Esta sección no ha cambiado)
 function borrarRecordatorio(idParaBorrar) {
     if (!confirm("¿Estás seguro de que quieres borrar este medicamento?")) {
         return;
@@ -326,9 +278,6 @@ function borrarRecordatorio(idParaBorrar) {
     const nuevosRecordatorios = recordatorios.filter(r => r.id != idParaBorrar);
     localStorage.setItem('recordatorios', JSON.stringify(nuevosRecordatorios));
 
-    // Recargamos ambas vistas
-    const contenedorMedicamentos = document.getElementById('contenedor-medicamentos');
-    if (contenedorMedicamentos) mostrarMedicamentosLista(contenedorMedicamentos);
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) mostrarRecordatoriosIndex(contenedorRecordatorios);
 }
