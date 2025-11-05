@@ -251,6 +251,12 @@ function mostrarMedicamentosLista(contenedor) {
         contenedor.insertAdjacentHTML('beforeend', cardHTML);
     });
 }
+
+function crearTitulo(titulo) {
+    // Añadimos un poco más de margen superior (pt-4) para separarlo
+    return `<h2 class="text-lg font-bold text-zinc-400 px-2 pt-4">${titulo}</h2>`;
+}
+
 function crearTarjetaRecordatorio(recordatorio) {
     let icon = 'pill';
     const nombreLower = recordatorio.nombre.toLowerCase();
