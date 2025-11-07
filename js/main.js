@@ -1,19 +1,24 @@
-// --- main.js (Versión con Selector de Tema Funcional) ---
+// --- main.js (Versión con Lógica de Tema CORREGIDA) ---
 
 /**
  * =======================================================
- * SECCIÓN 0: CARGADOR DE TEMA (¡NUEVO!)
+ * SECCIÓN 0: CARGADOR DE TEMA (¡CORREGIDO!)
  * Se ejecuta de inmediato para evitar parpadeo.
  * =======================================================
  */
 (function () {
-    // 1. Obtiene el tema guardado o usa 'dark' por defecto.
-    const theme = localStorage.getItem('theme') || 'dark';
+    const theme = localStorage.getItem('theme') || 'dark'; // 'dark' es el default
     const html = document.documentElement;
-    // 2. Limpia temas viejos
+
+    // Limpia cualquier clase de tema anterior
     html.classList.remove('dark', 'light', 'high-contrast');
-    // 3. Aplica el tema actual
-    html.classList.add(theme);
+
+    if (theme !== 'light') {
+        // Añade 'dark' o 'high-contrast'
+        html.classList.add(theme);
+    }
+    // Si el tema es 'light', no añade NINGUNA clase. 
+    // Esto permite que los estilos por defecto (modo claro) funcionen.
 })();
 
 
@@ -72,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===== ¡NUEVA LÓGICA PARA EL SELECTOR DE TEMA! =====
+    // ===== ¡LÓGICA DE TEMA CORREGIDA! =====
     const themeSelector = document.getElementById('theme-selector');
     if (themeSelector) {
         const lightBtn = document.getElementById('btn-theme-light');
@@ -111,16 +116,23 @@ document.addEventListener('DOMContentLoaded', () => {
         darkBtn.addEventListener('click', () => setTheme('dark'));
         contrastBtn.addEventListener('click', () => setTheme('high-contrast'));
 
+        // ¡FUNCIÓN SETTHEME CORREGIDA!
         function setTheme(theme) {
-            // 1. Aplicar al HTML
             const html = document.documentElement;
-            html.classList.remove('dark', 'light', 'high-contrast');
-            html.classList.add(theme);
 
-            // 2. Guardar en localStorage
+            // 1. Limpia todas las clases de tema
+            html.classList.remove('dark', 'light', 'high-contrast');
+
+            if (theme !== 'light') {
+                // 2. Añade la clase solo si NO es 'light'
+                html.classList.add(theme);
+            }
+            // Si es 'light', no se añade nada, usando los estilos por defecto.
+
+            // 3. Guardar en localStorage
             localStorage.setItem('theme', theme);
 
-            // 3. Actualizar botones
+            // 4. Actualizar botones
             updateButtonState(theme);
         }
     }
