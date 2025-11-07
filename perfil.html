@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
 
+<script>
+    (function () {
+        const theme = localStorage.getItem('theme') || 'dark';
+        const html = document.documentElement;
+        html.classList.remove('dark', 'light', 'high-contrast');
+        if (theme !== 'light') html.classList.add(theme);
+    })();
+</script>
+
+
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -167,7 +177,7 @@
         </main>
 
     </div>
-    <script src="js/main.js"></script>
+    <script src="js/main.js" defer></script>
 </body>
 
 </html>

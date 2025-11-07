@@ -89,20 +89,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeClasses = 'border-primary bg-primary/10';
 
         // Función para actualizar el estado visual de los botones
+        // Función para actualizar el estado visual de los botones
         function updateButtonState(currentTheme) {
+
+            // Convertimos el string de clases activas en un array
+            const activeClassesArray = activeClasses.split(' '); // Esto da: ['border-primary', 'bg-primary/10']
+
             buttons.forEach(btn => {
-                btn.classList.remove(activeClasses, activeClasses.replace('border-', 'border-'));
+                // Usamos ... (spread operator) para quitar AMBAS clases del array
+                btn.classList.remove(...activeClassesArray);
+
+                // Quitamos la línea extraña que tenías: activeClasses.replace('border-', 'border-')
+
+                // Añadimos la clase inactiva (que es un solo string, así que está bien)
                 btn.classList.add(inactiveClasses);
             });
 
             if (currentTheme === 'light') {
-                lightBtn.classList.add(activeClasses);
+                // Usamos ... (spread operator) para AÑADIR ambas clases
+                lightBtn.classList.add(...activeClassesArray);
                 lightBtn.classList.remove(inactiveClasses);
             } else if (currentTheme === 'dark') {
-                darkBtn.classList.add(activeClasses);
+                darkBtn.classList.add(...activeClassesArray);
                 darkBtn.classList.remove(inactiveClasses);
             } else if (currentTheme === 'high-contrast') {
-                contrastBtn.classList.add(activeClasses);
+                contrastBtn.classList.add(...activeClassesArray);
                 contrastBtn.classList.remove(inactiveClasses);
             }
         }
@@ -134,6 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 4. Actualizar botones
             updateButtonState(theme);
+            document.body.style.display = 'none';
+            document.body.offsetHeight; // fuerza reflow
+            document.body.style.display = '';
         }
     }
     // ===================================================

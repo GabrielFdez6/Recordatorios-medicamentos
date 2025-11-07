@@ -1,3 +1,16 @@
+/* ========================================= */
+/* PRIORIDAD AL CSS PERSONALIZADO DE TEMAS   */
+/* ========================================= */
+:root {
+    color-scheme: light dark;
+}
+
+/* Esto evita que Tailwind sobrescriba los estilos */
+html.dark body,
+html.high-contrast body {
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
 /* Estilos para los iconos de Google */
 .material-symbols-outlined {
     font-variation-settings:
@@ -45,6 +58,126 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 
 /* =================================== */
+/* TEMA CLARO (¡NUEVO!)              */
+/* Anula las clases oscuras hardcodeadas */
+/* =================================== */
+
+/* Selector principal: se aplica solo si NO es 'dark' y NO es 'high-contrast' */
+html:not(.dark):not(.high-contrast) body {
+    background-color: #f6f8f6 !important;
+    /* background-light */
+    color: #0d0d0d !important;
+    /* background-dark (para texto) */
+}
+
+/* --- Fondos de Componentes --- */
+
+/* (¡MODIFICADO!) Contenedores con borde (se quitó .bg-black) */
+html:not(.dark):not(.high-contrast) .bg-surface-dark,
+html:not(.dark):not(.high-contrast) .bg-gray-900,
+html:not(.dark):not(.high-contrast) .bg-zinc-800,
+html:not(.dark):not(.high-contrast) .bg-card-dark {
+    background-color: #FFFFFF !important;
+    border: 1px solid #d1d5db !important;
+    /* Borde sutil gris */
+}
+
+/* (¡NUEVO!) Excepciones para el icono de modo oscuro (para que se quede oscuro) */
+html:not(.dark):not(.high-contrast) #btn-theme-dark .bg-background-dark {
+    background-color: #0d0d0d !important;
+    /* Fuerza el fondo negro */
+    border: 1px solid #0d0d0d !important;
+    /* Fuerza el borde negro */
+}
+
+html:not(.dark):not(.high-contrast) #btn-theme-dark .bg-background-dark .text-white {
+    color: #FFFFFF !important;
+    /* Forza el icono de luna a blanco */
+}
+
+/* (¡NUEVO!) Excepciones para el icono de alto contraste (para que no cambie) */
+html:not(.dark):not(.high-contrast) #btn-theme-contrast div[class*="bg-black"] {
+    background-color: #000000 !important;
+    /* Fuerza fondo negro */
+    /* Mantiene el 'ring' de Tailwind, no necesita borde */
+}
+
+html:not(.dark):not(.high-contrast) #btn-theme-contrast span[class*="text-yellow-400"] {
+    color: #facc15 !important;
+    /* Tailwind's yellow-400 */
+}
+
+
+/* --- Cabeceras y Pies de Página --- */
+html:not(.dark):not(.high-contrast) .bg-background-dark\/80,
+html:not(.dark):not(.high-contrast) header.bg-background-dark {
+    background-color: rgba(246, 248, 246, 0.8) !important;
+    border-bottom: 1px solid #d1d5db !important;
+}
+
+html:not(.dark):not(.high-contrast) footer.bg-background-dark {
+    background-color: rgba(246, 248, 246, 0.8) !important;
+    border-top: 1px solid #d1d5db !important;
+}
+
+
+/* --- Textos --- */
+/* (¡MODIFICADO!) Anula textos (se quitó .text-yellow-400) */
+html:not(.dark):not(.high-contrast) .text-white,
+html:not(.dark):not(.high-contrast) .text-gray-300,
+html:not(.dark):not(.high-contrast) .text-zinc-200,
+html:not(.dark):not(.high-contrast) .text-gray-100 {
+    color: #0d0d0d !important;
+    /* Texto negro */
+}
+
+html:not(.dark):not(.high-contrast) .text-gray-400,
+html:not(.dark):not(.high-contrast) .text-slate-400,
+html:not(.dark):not(.high-contrast) .text-zinc-400,
+html:not(.dark):not(.high-contrast) .text-white\/50 {
+    color: #6b7280 !important;
+    /* Texto gris oscuro */
+}
+
+/* --- Bordes (Líneas de separación) --- */
+html:not(.dark):not(.high-contrast) .border-white\/10,
+html:not(.dark):not(.high-contrast) .border-slate-700,
+html:not(.dark):not(.high-contrast) .border-slate-800,
+html:not(.dark):not(.high-contrast) .border-zinc-600,
+html:not(.dark):not(.high-contrast) .border-gray-700 {
+    border-color: #d1d5db !important;
+    /* Borde gris claro */
+}
+
+/* --- Formularios (Textfields) --- */
+html:not(.dark):not(.high-contrast) .form-input::placeholder,
+html:not(.dark):not(.high-contrast) .placeholder\:text-gray-500::placeholder {
+    color: #9ca3af !important;
+    /* gris-400 */
+}
+
+/* --- Sliders --- */
+/* (¡MODIFICADO!) Ahora solo define el MODO CLARO */
+html:not(.dark):not(.high-contrast) .bg-slate-700,
+html:not(.dark):not(.high-contrast) .bg-white\/10 {
+    background-color: #d1d5db !important;
+    /* gris-300 */
+}
+
+
+/* =================================== */
+/* TEMA OSCURO (Consistencia)        */
+/* =================================== */
+/* (¡NUEVO!) Consistencia de Sliders en Modo Oscuro */
+html.dark .bg-white\/10 {
+    background-color: #334155 !important;
+    /* slate-700 */
+}
+
+/* La clase .bg-slate-700 ya es correcta, no necesita anulación */
+
+
+/* =================================== */
 /* TEMA DE ALTO CONTRASTE (¡NUEVO!) */
 /* =================================== */
 
@@ -57,20 +190,19 @@ html.high-contrast body {
 /* Fondos de componentes */
 html.high-contrast .bg-background-dark,
 html.high-contrast .dark\:bg-background-dark,
-html.high-contrast .bg-gray-900 {
+html.high-contrast .bg-gray-900,
+html.high-contrast .bg-black {
     background-color: #000000 !important;
 }
 
 html.high-contrast .bg-card-dark {
     background-color: #000000 !important;
     border: 2px solid #FFFF00 !important;
-    /* Borde amarillo brillante */
 }
 
 html.high-contrast .bg-surface-dark {
     background-color: #000000 !important;
     border: 2px solid #FFFFFF !important;
-    /* Borde blanco */
 }
 
 html.high-contrast .bg-zinc-800 {
@@ -84,26 +216,27 @@ html.high-contrast .text-gray-300,
 html.high-contrast .text-gray-400,
 html.high-contrast .text-zinc-200,
 html.high-contrast .text-zinc-400,
-html.high-contrast .text-slate-400 {
+html.high-contrast .text-slate-400,
+html.high-contrast .text-white\/50 {
     color: #FFFFFF !important;
+}
+
+html.high-contrast .text-yellow-400 {
+    color: #FFFF00 !important;
 }
 
 /* Colores primarios (Cambiados a Amarillo) */
 html.high-contrast .bg-primary {
     background-color: #FFFF00 !important;
-    /* Amarillo */
     color: #000000 !important;
-    /* Texto negro para contraste */
 }
 
 html.high-contrast .text-primary {
     color: #FFFF00 !important;
-    /* Amarillo */
 }
 
 html.high-contrast .border-primary {
     border-color: #FFFF00 !important;
-    /* Amarillo */
 }
 
 html.high-contrast .bg-primary\/10 {
@@ -123,6 +256,13 @@ html.high-contrast .bg-warning {
     background-color: #FFA500 !important;
 }
 
+/* (¡NUEVO!) Consistencia de Sliders en Alto Contraste */
+html.high-contrast .bg-slate-700,
+html.high-contrast .bg-white\/10 {
+    background-color: #000000 !important;
+    border: 1px solid #FFFFFF !important;
+}
+
 /* Bordes */
 html.high-contrast .border-white\/10,
 html.high-contrast .border-slate-700,
@@ -130,7 +270,6 @@ html.high-contrast .border-slate-800,
 html.high-contrast .border-zinc-600,
 html.high-contrast .border-gray-700 {
     border-color: #FFFFFF !important;
-    /* Bordes blancos */
 }
 
 /* Headers y Footers */
@@ -138,15 +277,23 @@ html.high-contrast .backdrop-blur-sm {
     backdrop-filter: none !important;
 }
 
-html.high-contrast .bg-background-dark\/80 {
+html.high-contrast .bg-background-dark\/80,
+html.high-contrast header.bg-background-dark,
+html.high-contrast footer.bg-background-dark {
     background-color: #000000 !important;
-    border-bottom: 2px solid #FFFF00;
-    /* Borde amarillo para headers */
+    border-color: #FFFF00 !important;
 }
 
 /* Botón de eliminar */
 html.high-contrast .text-red-400 {
     color: #FF4D4D !important;
-    /* Rojo más brillante */
     font-weight: 700 !important;
+}
+
+/* ========================================= */
+/* REFUERZO DE PRIORIDAD CONTRA TAILWIND     */
+/* ========================================= */
+html.high-contrast *,
+html.dark * {
+    color-scheme: inherit !important;
 }
