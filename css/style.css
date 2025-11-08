@@ -52,6 +52,27 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     -webkit-appearance: none;
 }
 
+/* === (¡NUEVO!) ESTILOS DE ALARMA === */
+/* Para el slider de la alarma */
+#slider-thumb {
+    transition: transform 0.1s ease-out, background-color 0.25s ease;
+}
+
+/* Estilos específicos para tema claro y alto contraste */
+html:not(.dark):not(.high-contrast) #slider-thumb {
+    /* El color azul claro ya se aplica por las reglas de .bg-primary */
+    color: #FFFFFF !important;
+    /* Texto del icono siempre blanco */
+}
+
+html.high-contrast #slider-thumb {
+    /* El color amarillo ya se aplica por las reglas de .bg-primary */
+    color: #000000 !important;
+    /* Texto del icono siempre negro */
+}
+
+/* === FIN DE ESTILOS DE ALARMA === */
+
 
 /* =================================== */
 /* TEMA CLARO (¡NUEVO!)              */
@@ -59,9 +80,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* =================================== */
 
 /* Selector principal: se aplica solo si NO es 'dark' y NO es 'high-contrast' */
+/* Selector principal: se aplica solo si NO es 'dark' y NO es 'high-contrast' */
 html:not(.dark):not(.high-contrast) body {
-    background-color: #f6f8f6 !important;
-    /* background-light */
+    background-color: #FFFFFF !important;
+    /* (¡Cambiado a blanco puro!) */
     color: #0d0d0d !important;
     /* background-dark (para texto) */
 }
@@ -72,6 +94,7 @@ html:not(.dark):not(.high-contrast) .bg-gray-900,
 html:not(.dark):not(.high-contrast) .bg-zinc-800,
 html:not(.dark):not(.high-contrast) .bg-card-dark {
     background-color: #FFFFFF !important;
+    /* (¡ESTAS SON TUS TARJETAS BLANCAS!) */
     border: 1px solid #d1d5db !important;
     /* Borde sutil gris */
     transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
@@ -109,15 +132,27 @@ html:not(.dark):not(.high-contrast) #btn-theme-contrast span[class*="text-yellow
 
 
 /* --- Cabeceras y Pies de Página --- */
+/* --- Cabeceras y Pies de Página --- */
 html:not(.dark):not(.high-contrast) .bg-background-dark\/80,
-html:not(.dark):not(.high-contrast) header.bg-background-dark {
-    background-color: rgba(246, 248, 246, 0.8) !important;
+html:not(.dark):not(.high-contrast) header.bg-background-dark,
+html:not(.dark):not(.high-contrast) .dark\:bg-background-dark {
+    /* (¡NUEVO!) Selector para el modal de alarma */
+    background-color: #FFFFFF !important;
+    /* (¡CAMBIADO A BLANCO SÓLIDO!) */
     border-bottom: 1px solid #d1d5db !important;
     transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
+/* Fondo específico del modal de alarma en tema claro (sólido) */
+html:not(.dark):not(.high-contrast) #alarm-modal.bg-background-dark {
+    background-color: #FFFFFF !important;
+    /* (¡CAMBIADO A BLANCO SÓLIDO!) */
+}
+
+
 html:not(.dark):not(.high-contrast) footer.bg-background-dark {
-    background-color: rgba(246, 248, 246, 0.8) !important;
+    background-color: #FFFFFF !important;
+    /* (¡CAMBIADO A BLANCO SÓLIDO!) */
     border-top: 1px solid #d1d5db !important;
     transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
@@ -151,6 +186,17 @@ html:not(.dark):not(.high-contrast) .border-gray-700 {
 }
 
 /* --- Formularios (Textfields) --- */
+
+/* (¡ESTA ES LA NUEVA REGLA!) 
+   Forzar fondo blanco y texto negro para inputs en tema claro */
+html:not(.dark):not(.high-contrast) .form-input {
+    background-color: #FFFFFF !important;
+    border-color: #d1d5db !important;
+    /* Borde gris sutil */
+    color: #0d0d0d !important;
+    /* Texto negro */
+}
+
 html:not(.dark):not(.high-contrast) .form-input::placeholder,
 html:not(.dark):not(.high-contrast) .placeholder\:text-gray-500::placeholder {
     color: #9ca3af !important;
@@ -276,7 +322,7 @@ html.high-contrast .bg-zinc-800 {
 /* Textos */
 html.high-contrast .text-white,
 html.high-contrast .text-gray-300,
-html:not(.dark):not(.high-contrast) .text-gray-400,
+html.high-contrast .text-gray-400,
 html.high-contrast .text-zinc-200,
 html.high-contrast .text-zinc-400,
 html.high-contrast .text-slate-400,
