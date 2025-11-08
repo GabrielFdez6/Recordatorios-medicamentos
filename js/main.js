@@ -36,6 +36,48 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- ¡NUEVA SECCIÓN DE ARRANQUE DE AUDIO! ---
+    // Esto soluciona la "Política de Autoplay" en móviles
+    // El sonido no se reproducirá hasta que el usuario interactúe.
+    // Esta función "prepara" el audio en la primera interacción.
+
+    const alarmSoundForPriming = document.getElementById('alarm-sound');
+    let isAudioPrimed = false; // Bandera para saber si ya lo desbloqueamos
+
+    function primeAudio() {
+        if (isAudioPrimed || !alarmSoundForPriming) {
+            // Si ya está desbloqueado, o no existe el audio, no hacer nada.
+            return;
+        }
+
+        console.log("Intentando preparar el audio...");
+
+        // Intentamos reproducir
+        alarmSoundForPriming.play().then(() => {
+            // ¡Éxito! El navegador nos dejó.
+            // Lo pausamos inmediatamente.
+            alarmSoundForPriming.pause();
+            alarmSoundForPriming.currentTime = 0;
+            isAudioPrimed = true;
+            console.log("¡Audio preparado (desbloqueado)!");
+            // Una vez que funciona, removemos los listeners.
+            document.removeEventListener('click', primeAudio);
+            document.removeEventListener('touchstart', primeAudio);
+        }).catch(error => {
+            // Falla (esperado la primera vez)
+            // El navegador aún lo bloqueó. No pasa nada.
+            // El listener seguirá activo y lo intentará en el próximo clic.
+            console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+        });
+    }
+
+    // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
+    // NO usamos { once: true } para que siga intentando hasta que funcione.
+    document.addEventListener('click', primeAudio);
+    document.addEventListener('touchstart', primeAudio);
+    // --- FIN DE LA NUEVA SECCIÓN ---
+
+
     // (¡NUEVO!) Revisar si hay una alarma pendiente al cargar la app
     // Esto se activa cuando el usuario abre la app desde una notificación
     try {
@@ -419,10 +461,9 @@ if (botonAgregar) {
 
         const frecuenciaEnMS = parseInt(frecuenciaMed, 10) * 60000;
 
-        // --- ¡¡¡CAMBIO 1: LA CORRECCIÓN!!! ---
-        // Cambiado de <= a < para evitar el minuto extra.
-        while (proximaDosisTimestamp < ahoraTimestamp) {
-
+        // ¡Importante! Asegurarse de que la primera dosis sea en el futuro
+        // Si la hora de inicio ya pasó hoy, calcular la siguiente dosis
+        while (proximaDosisTimestamp <= ahoraTimestamp) {
             proximaDosisTimestamp += frecuenciaEnMS;
         }
 
@@ -470,7 +511,12 @@ function revisarRecordatorios() {
 
     recordatorios.forEach(recordatorio => {
 
-        if (recordatorio.proximaDosis <= ahoraTimestamp) {
+        // Comprobación de precisión: solo activar si está dentro del último segundo
+        // (ahoraTimestamp - proximaDosis) < 1000ms (la duración de nuestro intervalo)
+        const diferencia = ahoraTimestamp - recordatorio.proximaDosis;
+
+        // Activar si la hora es AHORA (o un poco tarde, pero dentro de nuestro intervalo de 1seg)
+        if (recordatorio.proximaDosis <= ahoraTimestamp && diferencia < 1000) {
 
             // (¡NUEVO!) Lógica de Alarma
             if (document.hidden) {
@@ -482,12 +528,13 @@ function revisarRecordatorios() {
                 new Notification(`¡Hora de tu medicamento!`, {
                     body: `Es hora de tomar tu ${recordatorio.nombre} (${recordatorio.dosis}).`,
                     tag: `med-${recordatorio.id}`, // Agrupar notificaciones
-                    sound: 'sounds/alarm.mp3',
+                    sound: 'sounds/alarm.mp3', // Ignorado en móviles, pero está bien tenerlo
                     vibrate: [200, 100, 200]
                 });
 
             } else {
                 // 2. App está abierta y visible
+                // ¡Esto es lo que quieres ver en tus pruebas!
                 // Mostrar la alarma en pantalla completa
                 showAlarm(recordatorio);
             }
@@ -522,8 +569,8 @@ function cicloPrincipal() {
     refrescarListaIndex();
 }
 
-// --- ¡¡¡CAMBIO 2: LA MEJORA!!! ---
-// Cambiado de 5000 a 1000 para que revise cada segundo.
+// --- ¡ESTE ES EL CAMBIO IMPORTANTE! ---
+// Revisar cada segundo para precisión, en lugar de cada 5 segundos.
 setInterval(cicloPrincipal, 1000);
 
 
@@ -647,7 +694,7 @@ function crearTarjetaRecordatorio(recordatorio) {
 
 /**
 * =======================================================
-* SECCIÓN 6: LÓGICA DE BORRAR
+* SECCIÓN 6: LÓGICA de BORRAR
 * =======================================================
 */
 function borrarRecordatorio(idParaBorrar) {
@@ -707,12 +754,25 @@ function showAlarm(recordatorio) {
     doseEl.textContent = recordatorio.dosis || 'Sin dosis';
 
     // Reproducir sonido (usando el volumen guardado)
+    // --- ¡MODIFICADO! ---
+    // Ahora usamos la Promesa de .play() para manejar el error de Autoplay
     try {
         const savedVolume = parseInt(localStorage.getItem('profileVolume') || '75', 10);
         alarmSound.volume = savedVolume / 100; // El volumen de HTML va de 0.0 a 1.0
-        alarmSound.play();
+
+        const playPromise = alarmSound.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                // ¡Sonido iniciado!
+            }).catch(error => {
+                // ¡Bloqueado!
+                console.error("El navegador bloqueó el sonido de la alarma.", error);
+                // Aquí podríamos mostrar un ícono de "silencio" en la UI de la alarma
+            });
+        }
     } catch (e) {
-        console.error("No se pudo reproducir el sonido de alarma:", e);
+        console.error("Error inesperado al intentar reproducir la alarma:", e);
     }
 
     // Mostrar el modal
