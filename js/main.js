@@ -17,7 +17,7 @@
 
 /**
  * =======================================================
- * SECCIÓN 0.5: CARGADOR DE TAMAÑO DE FUENTE
+ * SECCIÓN 0.5: CARGADOR de TAMAÑO DE FUENTE
  * =======================================================
  */
 (function () {
@@ -36,45 +36,61 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- ¡NUEVA SECCIÓN DE ARRANQUE DE AUDIO! ---
-    // Esto soluciona la "Política de Autoplay" en móviles
+    // --- ¡NUEVA SECCIÓN DE ARRANQUE DE AUDIO (SILENCIOSA)! ---
+    // Soluciona la "Política de Autoplay" en móviles
     // El sonido no se reproducirá hasta que el usuario interactúe.
-    // Esta función "prepara" el audio en la primera interacción.
 
     const alarmSoundForPriming = document.getElementById('alarm-sound');
     let isAudioPrimed = false; // Bandera para saber si ya lo desbloqueamos
 
-    function primeAudio() {
+    function primeAudioSilently() {
         if (isAudioPrimed || !alarmSoundForPriming) {
             // Si ya está desbloqueado, o no existe el audio, no hacer nada.
             return;
         }
 
-        console.log("Intentando preparar el audio...");
+        console.log("Intentando preparar el audio silenciosamente...");
 
-        // Intentamos reproducir
+        // 1. Silenciamos el audio
+        const originalMuted = alarmSoundForPriming.muted;
+        alarmSoundForPriming.muted = true;
+        // Ponemos el volumen a 0 por si acaso
+        const originalVolume = alarmSoundForPriming.volume;
+        alarmSoundForPriming.volume = 0;
+
+        // 2. Intentamos reproducir
         alarmSoundForPriming.play().then(() => {
             // ¡Éxito! El navegador nos dejó.
-            // Lo pausamos inmediatamente.
+            // 3. Lo pausamos inmediatamente.
             alarmSoundForPriming.pause();
             alarmSoundForPriming.currentTime = 0;
+
+            // 4. Restauramos sus valores originales
+            alarmSoundForPriming.muted = originalMuted;
+            alarmSoundForPriming.volume = originalVolume;
+
             isAudioPrimed = true;
             console.log("¡Audio preparado (desbloqueado)!");
-            // Una vez que funciona, removemos los listeners.
-            document.removeEventListener('click', primeAudio);
-            document.removeEventListener('touchstart', primeAudio);
+
+            // 5. Una vez que funciona, removemos los listeners.
+            document.removeEventListener('click', primeAudioSilently);
+            document.removeEventListener('touchstart', primeAudioSilently);
+            document.removeEventListener('touchend', primeAudioSilently);
         }).catch(error => {
             // Falla (esperado la primera vez)
             // El navegador aún lo bloqueó. No pasa nada.
-            // El listener seguirá activo y lo intentará en el próximo clic.
+            // Restauramos los valores y el listener seguirá activo.
+            alarmSoundForPriming.muted = originalMuted;
+            alarmSoundForPriming.volume = originalVolume;
             console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
         });
     }
 
     // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
-    // NO usamos { once: true } para que siga intentando hasta que funcione.
-    document.addEventListener('click', primeAudio);
-    document.addEventListener('touchstart', primeAudio);
+    document.addEventListener('click', primeAudioSilently);
+    document.addEventListener('touchstart', primeAudioSilently);
+    // Agregamos 'touchend' como respaldo
+    document.addEventListener('touchend', primeAudioSilently);
     // --- FIN DE LA NUEVA SECCIÓN ---
 
 
@@ -694,7 +710,7 @@ function crearTarjetaRecordatorio(recordatorio) {
 
 /**
 * =======================================================
-* SECCIÓN 6: LÓGICA de BORRAR
+* SECCIÓN 6: LÓGICA DE BORRAR
 * =======================================================
 */
 function borrarRecordatorio(idParaBorrar) {
@@ -759,6 +775,8 @@ function showAlarm(recordatorio) {
     try {
         const savedVolume = parseInt(localStorage.getItem('profileVolume') || '75', 10);
         alarmSound.volume = savedVolume / 100; // El volumen de HTML va de 0.0 a 1.0
+        // Restaurar 'muted' por si acaso
+        alarmSound.muted = false;
 
         const playPromise = alarmSound.play();
 
