@@ -31,66 +31,62 @@
 
 /**
  * =======================================================
- * SECCIÓN 1: PERMISOS Y LÓGICA DE INICIO (¡MODIFICADA!)
+ * SECCIÓN 1: PERMISOS Y LÓGICA DE INICIO (¡CORREGIDA!)
  * =======================================================
  */
+
+// --- ¡NUEVO! DETENER SONIDO AL CAMBIAR DE PÁGINA ---
+// Esto evita que la alarma suene "entre" páginas si justo haces clic.
+window.addEventListener('beforeunload', () => {
+    const alarmSound = document.getElementById('alarm-sound');
+    if (alarmSound) {
+        alarmSound.pause();
+        alarmSound.currentTime = 0;
+    }
+});
+
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- ¡NUEVA SECCIÓN DE ARRANQUE DE AUDIO (SILENCIOSA)! ---
-    // Soluciona la "Política de Autoplay" en móviles
+    // --- ¡NUEVO ARRANQUE DE AUDIO (SIMPLE Y CORRECTO)! ---
+    // Esto soluciona la "Política de Autoplay" en móviles
     // El sonido no se reproducirá hasta que el usuario interactúe.
 
     const alarmSoundForPriming = document.getElementById('alarm-sound');
     let isAudioPrimed = false; // Bandera para saber si ya lo desbloqueamos
 
-    function primeAudioSilently() {
+    function primeAudioOnClick() {
         if (isAudioPrimed || !alarmSoundForPriming) {
-            // Si ya está desbloqueado, o no existe el audio, no hacer nada.
-            return;
+            return; // Ya está desbloqueado
         }
 
-        console.log("Intentando preparar el audio silenciosamente...");
+        console.log("Intentando preparar el audio...");
 
-        // 1. Silenciamos el audio
-        const originalMuted = alarmSoundForPriming.muted;
-        alarmSoundForPriming.muted = true;
-        // Ponemos el volumen a 0 por si acaso
-        const originalVolume = alarmSoundForPriming.volume;
-        alarmSoundForPriming.volume = 0;
-
-        // 2. Intentamos reproducir
+        // Intentamos reproducir.
+        // NOTA: Esto PUEDE causar un "blip" o "clic" corto la primera vez.
+        // ¡Esto es BUENO! Es la señal de que el navegador desbloqueó el audio.
         alarmSoundForPriming.play().then(() => {
             // ¡Éxito! El navegador nos dejó.
-            // 3. Lo pausamos inmediatamente.
+            // Lo pausamos inmediatamente.
             alarmSoundForPriming.pause();
             alarmSoundForPriming.currentTime = 0;
-
-            // 4. Restauramos sus valores originales
-            alarmSoundForPriming.muted = originalMuted;
-            alarmSoundForPriming.volume = originalVolume;
 
             isAudioPrimed = true;
             console.log("¡Audio preparado (desbloqueado)!");
 
-            // 5. Una vez que funciona, removemos los listeners.
-            document.removeEventListener('click', primeAudioSilently);
-            document.removeEventListener('touchstart', primeAudioSilently);
-            document.removeEventListener('touchend', primeAudioSilently);
+            // Una vez que funciona, removemos los listeners.
+            document.removeEventListener('click', primeAudioOnClick);
+            document.removeEventListener('touchstart', primeAudioOnClick);
         }).catch(error => {
-            // Falla (esperado la primera vez)
             // El navegador aún lo bloqueó. No pasa nada.
-            // Restauramos los valores y el listener seguirá activo.
-            alarmSoundForPriming.muted = originalMuted;
-            alarmSoundForPriming.volume = originalVolume;
+            // El listener seguirá activo y lo intentará en el próximo clic.
             console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
         });
     }
 
     // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
-    document.addEventListener('click', primeAudioSilently);
-    document.addEventListener('touchstart', primeAudioSilently);
-    // Agregamos 'touchend' como respaldo
-    document.addEventListener('touchend', primeAudioSilently);
+    document.addEventListener('click', primeAudioOnClick);
+    document.addEventListener('touchstart', primeAudioOnClick);
     // --- FIN DE LA NUEVA SECCIÓN ---
 
 
@@ -676,7 +672,7 @@ function crearTarjetaRecordatorio(recordatorio) {
                 <p class="text-3xl font-bold text-zinc-200">${recordatorio.nombre}</p>
                 
                 <p class="text-2xl text-white">${recordatorio.dosis || 'Sin dosis'}</p>
- 
+ ...
             </div>
             
             <div class="flex flex-1 items-center justify-center rounded-xl bg-zinc-800">
