@@ -1,4 +1,4 @@
-// --- main.js (Versión CORREGIDA con Lógica de TEMA, FUENTE y CONFIRMAR AL SALIR) ---
+// --- main.js (Versión CORREGIDA con Bucle Silencioso) ---
 
 /**
  * =======================================================
@@ -35,71 +35,89 @@
  * =======================================================
  */
 
-// --- ¡NUEVO! DETENER SONIDO AL CAMBIAR DE PÁGINA ---
-// Esto evita que la alarma suene "entre" páginas si justo haces clic.
+// --- ⬇️ INICIO DEL CAMBIO 1 (MODIFICADO) ⬇️ ---
+// Detener AMBOS sonidos al cambiar de página
 window.addEventListener('beforeunload', () => {
     const alarmSound = document.getElementById('alarm-sound');
     if (alarmSound) {
         alarmSound.pause();
         alarmSound.currentTime = 0;
     }
+
+    // Añadido para detener el bucle silencioso
+    const silentLoop = document.getElementById('silent-loop');
+    if (silentLoop) {
+        silentLoop.pause();
+    }
 });
+// --- ⬆️ FIN DEL CAMBIO 1 ⬆️ ---
 
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- ¡NUEVO ARRANQUE DE AUDIO (SIMPLE Y CORRECTO)! ---
-    // Esto soluciona la "Política de Autoplay" en móviles
-    // El sonido no se reproducirá hasta que el usuario interactúe.
-
+    // --- ⬇️ INICIO DEL CAMBIO 2 (REESCRITO) ⬇️ ---
+    // --- ARRANQUE DE AUDIO CON BUCLE SILENCIOSO ---
     const alarmSoundForPriming = document.getElementById('alarm-sound');
-
-    // ⬇️ --- CAMBIO 1: Eliminamos la variable 'isAudioPrimed' ---
-    // let isAudioPrimed = false; // (Ya no se usa)
+    const silentLoopSound = document.getElementById('silent-loop');
 
     function primeAudioOnClick() {
 
-        // ⬇️ --- CAMBIO 2: Usamos 'sessionStorage' para recordar entre páginas ---
+        // Revisar si ya lo hicimos en esta sesión
         if (sessionStorage.getItem('isAudioPrimed') === 'true' || !alarmSoundForPriming) {
-            return; // Ya está desbloqueado en esta sesión
+            return;
         }
 
-        console.log("Intentando preparar el audio (silenciosamente)...");
+        console.log("Intentando preparar AMBOS audios (silenciosamente)...");
 
-        // ⬇️ --- CAMBIO 3: Silenciamos el audio ANTES de reproducirlo ---
+        // 1. Prepara el audio de la ALARMA (silenciado)
         alarmSoundForPriming.muted = true;
+        const alarmPromise = alarmSoundForPriming.play();
 
-        // Intentamos reproducir (silenciosamente).
-        alarmSoundForPriming.play().then(() => {
-            // ¡Éxito! El navegador nos dejó.
-            // Lo pausamos inmediatamente.
-            alarmSoundForPriming.pause();
-            alarmSoundForPriming.currentTime = 0;
+        // 2. Prepara el BUCLE SILENCIOSO (con volumen 0)
+        let loopPromise = Promise.resolve(); // Promesa vacía por si no existe
+        if (silentLoopSound) {
+            silentLoopSound.muted = false; // El audio ya es silencioso de por sí
+            silentLoopSound.volume = 0;    // Doble seguro
+            loopPromise = silentLoopSound.play();
+        }
 
-            // ⬇️ --- CAMBIO 4: Reactivamos el sonido y guardamos el estado en la sesión ---
-            alarmSoundForPriming.muted = false; // ¡Importante! Lo reactivamos para la alarma real
-            sessionStorage.setItem('isAudioPrimed', 'true'); // Guardamos en la sesión
+        // 3. Esperar a que AMBOS se desbloqueen
+        Promise.all([alarmPromise, loopPromise])
+            .then(() => {
+                // ¡Éxito! Pausamos la alarma...
+                alarmSoundForPriming.pause();
+                alarmSoundForPriming.currentTime = 0;
+                alarmSoundForPriming.muted = false; // ¡Importante! Quitar mute
 
-            console.log("¡Audio preparado (desbloqueado)!");
+                // ...PERO dejamos el bucle silencioso sonando (con volumen 0)
+                if (silentLoopSound) {
+                    silentLoopSound.volume = 0;
+                    console.log("¡Bucle silencioso iniciado! Permiso de audio mantenido.");
+                }
 
-            // Una vez que funciona, removemos los listeners.
-            document.removeEventListener('click', primeAudioOnClick);
-            document.removeEventListener('touchstart', primeAudioOnClick);
+                // Guardar en la sesión
+                sessionStorage.setItem('isAudioPrimed', 'true');
+                console.log("¡Audio preparado (desbloqueado)!");
 
-        }).catch(error => {
-            // El navegador aún lo bloqueó. No pasa nada.
-            // El listener seguirá activo y lo intentará en el próximo clic.
-            console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+                // Removemos los listeners
+                document.removeEventListener('click', primeAudioOnClick);
+                document.removeEventListener('touchstart', primeAudioOnClick);
 
-            // ⬇️ --- CAMBIO 4 (Fallback): Nos aseguramos de quitar el mute si falla ---
-            alarmSoundForPriming.muted = false;
-        });
+            }).catch(error => {
+                // Si falla, lo intentará en el próximo clic
+                console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+
+                // Pausar ambos por si acaso
+                alarmSoundForPriming.pause();
+                alarmSoundForPriming.muted = false;
+                if (silentLoopSound) silentLoopSound.pause();
+            });
     }
 
     // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
     document.addEventListener('click', primeAudioOnClick);
     document.addEventListener('touchstart', primeAudioOnClick);
-    // --- FIN DE LA NUEVA SECCIÓN ---
+    // --- ⬆️ FIN DEL CAMBIO 2 ⬆️ ---
 
 
     // (¡NUEVO!) Revisar si hay una alarma pendiente al cargar la app
@@ -816,6 +834,7 @@ function hideAlarm() {
     alarmModal.classList.add('hidden');
 
     // Detener y rebobinar el sonido
+    // NOTA: NO detenemos el bucle silencioso. Ese sigue corriendo.
     alarmSound.pause();
     alarmSound.currentTime = 0;
 
