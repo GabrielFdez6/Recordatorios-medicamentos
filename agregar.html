@@ -13,7 +13,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="width=device-width, initial-scale-1.0" name="viewport" />
     <title>Añadir Medicamento</title>
 
     <link href="https://fonts.googleapis.com" rel="preconnect" />
@@ -65,7 +65,8 @@
                     <input
                         class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-white focus:outline-0 focus:ring-0 bg-gray-900 h-16 placeholder:text-gray-500 p-4 text-lg font-normal leading-normal rounded-l-xl"
                         id="med-name" placeholder="Ej: Paracetamol" value="" />
-                    <button class="text-gray-400 flex bg-gray-900 items-center justify-center px-4 rounded-r-xl">
+                    <button type="button"
+                        class="text-gray-400 flex bg-gray-900 items-center justify-center px-4 rounded-r-xl">
                         <span class="material-symbols-outlined text-3xl">mic</span>
                     </button>
                 </div>
@@ -77,7 +78,8 @@
                     <input
                         class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-white focus:outline-0 focus:ring-0 bg-gray-900 h-16 placeholder:text-gray-500 p-4 text-lg font-normal leading-normal rounded-l-xl"
                         id="med-dose" placeholder="Ej: 1 pastilla o 500mg" value="" />
-                    <button class="text-gray-400 flex bg-gray-900 items-center justify-center px-4 rounded-r-xl">
+                    <button type="button"
+                        class="text-gray-400 flex bg-gray-900 items-center justify-center px-4 rounded-r-xl">
                         <span class="material-symbols-outlined text-3xl">mic</span>
                     </button>
                 </div>
@@ -122,7 +124,7 @@
         </main>
 
         <footer class="sticky bottom-0 bg-background-dark p-4 pt-6 grid grid-cols-2 gap-4">
-            <button id="btn-agregar"
+            <button id="btn-agregar" type="button"
                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary h-16 px-6 text-white text-lg font-bold">
                 <span>Agregar</span>
             </button>

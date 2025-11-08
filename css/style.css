@@ -5,11 +5,7 @@
     color-scheme: light dark;
 }
 
-/* Esto evita que Tailwind sobrescriba los estilos */
-html.dark body,
-html.high-contrast body {
-    transition: background-color 0.25s ease, color 0.25s ease;
-}
+/* (MODIFICADO) Quitado el 'html.dark body...' de aquí */
 
 /* Estilos para los iconos de Google */
 .material-symbols-outlined {
@@ -32,11 +28,9 @@ html.high-contrast body {
 
 /* Estilo base para el body (móvil) */
 body {
-    /* * 'dvh' significa 'dynamic viewport height'. 
-   * Es mejor que 'max(884px, 100dvh)' porque se 
-   * adapta a CUALQUIER altura de teléfono.
-   */
     min-height: 100dvh;
+    /* (¡NUEVO!) Transición global para el body */
+    transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* Estilo para la flecha del <select> en el formulario */
@@ -49,6 +43,8 @@ select.form-input {
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
     padding-right: 2.5rem;
+    /* (¡NUEVO!) Transición para el select */
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 input[type="time"]::-webkit-calendar-picker-indicator {
@@ -71,8 +67,6 @@ html:not(.dark):not(.high-contrast) body {
 }
 
 /* --- Fondos de Componentes --- */
-
-/* (¡MODIFICADO!) Contenedores con borde (se quitó .bg-black) */
 html:not(.dark):not(.high-contrast) .bg-surface-dark,
 html:not(.dark):not(.high-contrast) .bg-gray-900,
 html:not(.dark):not(.high-contrast) .bg-zinc-800,
@@ -80,31 +74,37 @@ html:not(.dark):not(.high-contrast) .bg-card-dark {
     background-color: #FFFFFF !important;
     border: 1px solid #d1d5db !important;
     /* Borde sutil gris */
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
-/* (¡NUEVO!) Excepciones para el icono de modo oscuro (para que se quede oscuro) */
+/* (¡MODIFICADO!) Se separó .bg-black para la excepción */
+html:not(.dark):not(.high-contrast) .bg-black {
+    background-color: #FFFFFF !important;
+    border: 1px solid #d1d5db !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* Excepciones para el icono de modo oscuro */
 html:not(.dark):not(.high-contrast) #btn-theme-dark .bg-background-dark {
     background-color: #0d0d0d !important;
-    /* Fuerza el fondo negro */
     border: 1px solid #0d0d0d !important;
-    /* Fuerza el borde negro */
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 html:not(.dark):not(.high-contrast) #btn-theme-dark .bg-background-dark .text-white {
     color: #FFFFFF !important;
-    /* Forza el icono de luna a blanco */
+    transition: color 0.25s ease;
 }
 
-/* (¡NUEVO!) Excepciones para el icono de alto contraste (para que no cambie) */
+/* Excepciones para el icono de alto contraste */
 html:not(.dark):not(.high-contrast) #btn-theme-contrast div[class*="bg-black"] {
     background-color: #000000 !important;
-    /* Fuerza fondo negro */
-    /* Mantiene el 'ring' de Tailwind, no necesita borde */
+    transition: background-color 0.25s ease;
 }
 
 html:not(.dark):not(.high-contrast) #btn-theme-contrast span[class*="text-yellow-400"] {
     color: #facc15 !important;
-    /* Tailwind's yellow-400 */
+    transition: color 0.25s ease;
 }
 
 
@@ -113,22 +113,23 @@ html:not(.dark):not(.high-contrast) .bg-background-dark\/80,
 html:not(.dark):not(.high-contrast) header.bg-background-dark {
     background-color: rgba(246, 248, 246, 0.8) !important;
     border-bottom: 1px solid #d1d5db !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 html:not(.dark):not(.high-contrast) footer.bg-background-dark {
     background-color: rgba(246, 248, 246, 0.8) !important;
     border-top: 1px solid #d1d5db !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 
 /* --- Textos --- */
-/* (¡MODIFICADO!) Anula textos (se quitó .text-yellow-400) */
 html:not(.dark):not(.high-contrast) .text-white,
 html:not(.dark):not(.high-contrast) .text-gray-300,
 html:not(.dark):not(.high-contrast) .text-zinc-200,
 html:not(.dark):not(.high-contrast) .text-gray-100 {
     color: #0d0d0d !important;
-    /* Texto negro */
+    transition: color 0.25s ease;
 }
 
 html:not(.dark):not(.high-contrast) .text-gray-400,
@@ -136,7 +137,7 @@ html:not(.dark):not(.high-contrast) .text-slate-400,
 html:not(.dark):not(.high-contrast) .text-zinc-400,
 html:not(.dark):not(.high-contrast) .text-white\/50 {
     color: #6b7280 !important;
-    /* Texto gris oscuro */
+    transition: color 0.25s ease;
 }
 
 /* --- Bordes (Líneas de separación) --- */
@@ -146,35 +147,93 @@ html:not(.dark):not(.high-contrast) .border-slate-800,
 html:not(.dark):not(.high-contrast) .border-zinc-600,
 html:not(.dark):not(.high-contrast) .border-gray-700 {
     border-color: #d1d5db !important;
-    /* Borde gris claro */
+    transition: border-color 0.25s ease;
 }
 
 /* --- Formularios (Textfields) --- */
 html:not(.dark):not(.high-contrast) .form-input::placeholder,
 html:not(.dark):not(.high-contrast) .placeholder\:text-gray-500::placeholder {
     color: #9ca3af !important;
-    /* gris-400 */
 }
 
+/* (¡NUEVO!) Transición para inputs */
+.form-input {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* === ¡NUEVO BLOQUE! === */
+/* --- Modificación del color primario (Azul) para Tema Claro --- */
+html:not(.dark):not(.high-contrast) {
+    /* Defino el nuevo color azul-400 (#60a5fa) */
+    --color-primary-light: #60a5fa;
+}
+
+html:not(.dark):not(.high-contrast) .bg-primary {
+    background-color: var(--color-primary-light) !important;
+}
+
+html:not(.dark):not(.high-contrast) .text-primary {
+    color: var(--color-primary-light) !important;
+}
+
+html:not(.dark):not(.high-contrast) .border-primary,
+html:not(.dark):not(.high-contrast) .focus-within\:border-primary:focus-within {
+    border-color: var(--color-primary-light) !important;
+}
+
+html:not(.dark):not(.high-contrast) .accent-primary {
+    accent-color: var(--color-primary-light) !important;
+}
+
+/* Botón de tema activo */
+html:not(.dark):not(.high-contrast) .bg-primary\/10 {
+    background-color: rgba(96, 165, 250, 0.1) !important;
+    /* blue-400 10% */
+}
+
+/* Sombra de botón en Index */
+html:not(.dark):not(.high-contrast) .shadow-primary\/20 {
+    --tw-shadow-color: rgba(96, 165, 250, 0.2) !important;
+    /* blue-400 20% */
+    --tw-shadow: var(--tw-shadow-colored) !important;
+}
+
+/* Anillo de focus en inputs */
+html:not(.dark):not(.high-contrast) .focus\:ring-primary:focus,
+html:not(.dark):not(.high-contrast) .focus-within\:ring-primary:focus-within,
+html:not(.dark):not(.high-contrast) .focus\:ring-offset-background-dark:focus {
+    --tw-ring-color: var(--color-primary-light) !important;
+}
+
+html:not(.dark):not(.high-contrast) .focus\:ring-primary\/50:focus {
+    --tw-ring-color: rgba(96, 165, 250, 0.5) !important;
+    /* blue-400 50% */
+}
+
+/* === FIN DEL NUEVO BLOQUE === */
+
+
 /* --- Sliders --- */
-/* (¡MODIFICADO!) Ahora solo define el MODO CLARO */
 html:not(.dark):not(.high-contrast) .bg-slate-700,
 html:not(.dark):not(.high-contrast) .bg-white\/10 {
     background-color: #d1d5db !important;
-    /* gris-300 */
+    transition: background-color 0.25s ease;
 }
 
 
 /* =================================== */
 /* TEMA OSCURO (Consistencia)        */
 /* =================================== */
-/* (¡NUEVO!) Consistencia de Sliders en Modo Oscuro */
 html.dark .bg-white\/10 {
     background-color: #334155 !important;
     /* slate-700 */
+    transition: background-color 0.25s ease;
 }
 
-/* La clase .bg-slate-700 ya es correcta, no necesita anulación */
+/* (¡NUEVO!) Transición para el otro slider */
+html.dark .bg-slate-700 {
+    transition: background-color 0.25s ease;
+}
 
 
 /* =================================== */
@@ -193,36 +252,42 @@ html.high-contrast .dark\:bg-background-dark,
 html.high-contrast .bg-gray-900,
 html.high-contrast .bg-black {
     background-color: #000000 !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 html.high-contrast .bg-card-dark {
     background-color: #000000 !important;
     border: 2px solid #FFFF00 !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 html.high-contrast .bg-surface-dark {
     background-color: #000000 !important;
     border: 2px solid #FFFFFF !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 html.high-contrast .bg-zinc-800 {
     background-color: #000000 !important;
     border: 1px solid #FFFFFF !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
 /* Textos */
 html.high-contrast .text-white,
 html.high-contrast .text-gray-300,
-html.high-contrast .text-gray-400,
+html:not(.dark):not(.high-contrast) .text-gray-400,
 html.high-contrast .text-zinc-200,
 html.high-contrast .text-zinc-400,
 html.high-contrast .text-slate-400,
 html.high-contrast .text-white\/50 {
     color: #FFFFFF !important;
+    transition: color 0.25s ease;
 }
 
 html.high-contrast .text-yellow-400 {
     color: #FFFF00 !important;
+    transition: color 0.25s ease;
 }
 
 /* Colores primarios (Cambiados a Amarillo) */
@@ -235,7 +300,8 @@ html.high-contrast .text-primary {
     color: #FFFF00 !important;
 }
 
-html.high-contrast .border-primary {
+html.high-contrast .border-primary,
+html.high-contrast .focus-within\:border-primary:focus-within {
     border-color: #FFFF00 !important;
 }
 
@@ -247,6 +313,23 @@ html.high-contrast .accent-primary {
     accent-color: #FFFF00 !important;
 }
 
+/* Anillo de focus en Alto Contraste */
+html.high-contrast .focus\:ring-primary:focus,
+html.high-contrast .focus-within\:ring-primary:focus-within,
+html.high-contrast .focus\:ring-offset-background-dark:focus {
+    --tw-ring-color: #FFFF00 !important;
+}
+
+html.high-contrast .focus\:ring-primary\/50:focus {
+    --tw-ring-color: rgba(255, 255, 0, 0.5) !important;
+}
+
+/* Sombra en Alto Contraste */
+html.high-contrast .shadow-primary\/20 {
+    --tw-shadow-color: #FFFF00 !important;
+    --tw-shadow: var(--tw-shadow-colored) !important;
+}
+
 /* Colores de advertencia (Naranja brillante) */
 html.high-contrast .text-warning {
     color: #FFA500 !important;
@@ -256,11 +339,12 @@ html.high-contrast .bg-warning {
     background-color: #FFA500 !important;
 }
 
-/* (¡NUEVO!) Consistencia de Sliders en Alto Contraste */
+/* Consistencia de Sliders en Alto Contraste */
 html.high-contrast .bg-slate-700,
 html.high-contrast .bg-white\/10 {
     background-color: #000000 !important;
     border: 1px solid #FFFFFF !important;
+    transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 /* Bordes */
@@ -270,6 +354,7 @@ html.high-contrast .border-slate-800,
 html.high-contrast .border-zinc-600,
 html.high-contrast .border-gray-700 {
     border-color: #FFFFFF !important;
+    transition: border-color 0.25s ease;
 }
 
 /* Headers y Footers */
@@ -282,6 +367,7 @@ html.high-contrast header.bg-background-dark,
 html.high-contrast footer.bg-background-dark {
     background-color: #000000 !important;
     border-color: #FFFF00 !important;
+    transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 /* Botón de eliminar */
