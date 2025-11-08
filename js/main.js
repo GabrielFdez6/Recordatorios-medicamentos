@@ -63,395 +63,407 @@ document.addEventListener('DOMContentLoaded', () => {
     function primeAudioOnClick() {
 
         // Revisar si ya lo hicimos en esta sesión
-        if (sessionStorage.getItem('isAudioPrimed') === 'true' || !alarmSoundForPriming) {
-            return;
+        function primeAudioOnClick() {
+
+            // --- ⬇️ INICIO DE LA CORRECCIÓN ⬇️ ---
+            // Si la alarma ya está visible, no ejecutar esta función.
+            // El clic debe ser para el slider, no para 'preparar' el audio.
+            const modalAlarma = document.getElementById('alarm-modal');
+            if (modalAlarma && !modalAlarma.classList.contains('hidden')) {
+                return; // No hacer nada, la alarma está activa.
+            }
+            // --- ⬆️ FIN DE LA CORRECCIÓN ⬆️ ---
+
+            // Revisar si ya lo hicimos en esta sesión
+            if (sessionStorage.getItem('isAudioPrimed') === 'true' || !alarmSoundForPriming) {
+                return; // Ya está desbloqueado en esta sesión
+            }
+
+            console.log("Intentando preparar AMBOS audios (silenciosamente)...");
+
+            // 1. Prepara el audio de la ALARMA (silenciado)
+            alarmSoundForPriming.muted = true;
+            const alarmPromise = alarmSoundForPriming.play();
+
+            // 2. Prepara el BUCLE SILENCIOSO (con volumen 0)
+            let loopPromise = Promise.resolve(); // Promesa vacía por si no existe
+            if (silentLoopSound) {
+                silentLoopSound.muted = false; // El audio ya es silencioso de por sí
+                silentLoopSound.volume = 0;    // Doble seguro
+                loopPromise = silentLoopSound.play();
+            }
+
+            // 3. Esperar a que AMBOS se desbloqueen
+            Promise.all([alarmPromise, loopPromise])
+                .then(() => {
+                    // ¡Éxito! Pausamos la alarma...
+                    alarmSoundForPriming.pause();
+                    alarmSoundForPriming.currentTime = 0;
+                    alarmSoundForPriming.muted = false; // ¡Importante! Quitar mute
+
+                    // ...PERO dejamos el bucle silencioso sonando (con volumen 0)
+                    if (silentLoopSound) {
+                        silentLoopSound.volume = 0;
+                        console.log("¡Bucle silencioso iniciado! Permiso de audio mantenido.");
+                    }
+
+                    // Guardar en la sesión
+                    sessionStorage.setItem('isAudioPrimed', 'true');
+                    console.log("¡Audio preparado (desbloqueado)!");
+
+                    // Removemos los listeners
+                    document.removeEventListener('click', primeAudioOnClick);
+                    document.removeEventListener('touchstart', primeAudioOnClick);
+
+                }).catch(error => {
+                    // Si falla, lo intentará en el próximo clic
+                    console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+
+                    // Pausar ambos por si acaso
+                    alarmSoundForPriming.pause();
+                    alarmSoundForPriming.muted = false;
+                    if (silentLoopSound) silentLoopSound.pause();
+                });
         }
 
-        console.log("Intentando preparar AMBOS audios (silenciosamente)...");
+        // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
+        document.addEventListener('click', primeAudioOnClick);
+        document.addEventListener('touchstart', primeAudioOnClick);
+        // --- ⬆️ FIN DEL CAMBIO 2 ⬆️ ---
 
-        // 1. Prepara el audio de la ALARMA (silenciado)
-        alarmSoundForPriming.muted = true;
-        const alarmPromise = alarmSoundForPriming.play();
 
-        // 2. Prepara el BUCLE SILENCIOSO (con volumen 0)
-        let loopPromise = Promise.resolve(); // Promesa vacía por si no existe
-        if (silentLoopSound) {
-            silentLoopSound.muted = false; // El audio ya es silencioso de por sí
-            silentLoopSound.volume = 0;    // Doble seguro
-            loopPromise = silentLoopSound.play();
+        // (¡NUEVO!) Revisar si hay una alarma pendiente al cargar la app
+        // Esto se activa cuando el usuario abre la app desde una notificación
+        try {
+            const pendingAlarmJson = localStorage.getItem('pendingAlarm');
+            if (pendingAlarmJson) {
+                const recordatorio = JSON.parse(pendingAlarmJson);
+                localStorage.removeItem('pendingAlarm'); // Limpiar para que no se repita
+
+                // Esperar un breve momento para que la UI cargue
+                setTimeout(() => {
+                    showAlarm(recordatorio);
+                }, 100);
+            }
+        } catch (e) {
+            console.error("Error al procesar alarma pendiente:", e);
+            localStorage.removeItem('pendingAlarm');
         }
 
-        // 3. Esperar a que AMBOS se desbloqueen
-        Promise.all([alarmPromise, loopPromise])
-            .then(() => {
-                // ¡Éxito! Pausamos la alarma...
-                alarmSoundForPriming.pause();
-                alarmSoundForPriming.currentTime = 0;
-                alarmSoundForPriming.muted = false; // ¡Importante! Quitar mute
 
-                // ...PERO dejamos el bucle silencioso sonando (con volumen 0)
-                if (silentLoopSound) {
-                    silentLoopSound.volume = 0;
-                    console.log("¡Bucle silencioso iniciado! Permiso de audio mantenido.");
+        // Pedir permisos de notificación
+        if ("Notification" in window) {
+            if (Notification.permission === "default") {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === "granted") {
+                        new Notification("¡Gracias!", { body: "Ahora recibirás tus recordatorios." });
+                    }
+                });
+            }
+        }
+
+        // (¡NUEVO!) Inicializar la lógica de la alarma (está en la SECCIÓN 7)
+        initAlarmSlider();
+
+        // =======================================================
+        // SECCIÓN 2: LÓGICA DE LA PÁGINA DE INICIO (INDEX)
+        // =======================================================
+        const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
+
+        if (contenedorRecordatorios) {
+            mostrarRecordatoriosIndex(contenedorRecordatorios);
+
+            contenedorRecordatorios.addEventListener('click', (event) => {
+
+                const botonMenu = event.target.closest('.btn-menu');
+                const botonBorrar = event.target.closest('.btn-borrar-menu');
+
+                const botonEditar = event.target.closest('.btn-editar');
+
+                const menuActual = botonMenu ? botonMenu.nextElementSibling : null;
+
+                document.querySelectorAll('.menu-recordatorio').forEach(menu => {
+                    if (menu !== menuActual) {
+                        menu.classList.add('hidden');
+                    }
+                });
+
+                if (botonMenu) {
+
+                    event.preventDefault();
+                    menuActual.classList.toggle('hidden');
+                }
+                else if (botonBorrar) {
+
+                    event.preventDefault();
+                    borrarRecordatorio(botonBorrar.dataset.id);
+                }
+                else if (botonEditar) {
+
+                    event.preventDefault();
+                    alert("Función 'Editar' aún no implementada.");
+                    botonEditar.closest('.menu-recordatorio').classList.add('hidden');
                 }
 
-                // Guardar en la sesión
-                sessionStorage.setItem('isAudioPrimed', 'true');
-                console.log("¡Audio preparado (desbloqueado)!");
-
-                // Removemos los listeners
-                document.removeEventListener('click', primeAudioOnClick);
-                document.removeEventListener('touchstart', primeAudioOnClick);
-
-            }).catch(error => {
-                // Si falla, lo intentará en el próximo clic
-                console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
-
-                // Pausar ambos por si acaso
-                alarmSoundForPriming.pause();
-                alarmSoundForPriming.muted = false;
-                if (silentLoopSound) silentLoopSound.pause();
-            });
-    }
-
-    // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
-    document.addEventListener('click', primeAudioOnClick);
-    document.addEventListener('touchstart', primeAudioOnClick);
-    // --- ⬆️ FIN DEL CAMBIO 2 ⬆️ ---
-
-
-    // (¡NUEVO!) Revisar si hay una alarma pendiente al cargar la app
-    // Esto se activa cuando el usuario abre la app desde una notificación
-    try {
-        const pendingAlarmJson = localStorage.getItem('pendingAlarm');
-        if (pendingAlarmJson) {
-            const recordatorio = JSON.parse(pendingAlarmJson);
-            localStorage.removeItem('pendingAlarm'); // Limpiar para que no se repita
-
-            // Esperar un breve momento para que la UI cargue
-            setTimeout(() => {
-                showAlarm(recordatorio);
-            }, 100);
-        }
-    } catch (e) {
-        console.error("Error al procesar alarma pendiente:", e);
-        localStorage.removeItem('pendingAlarm');
-    }
-
-
-    // Pedir permisos de notificación
-    if ("Notification" in window) {
-        if (Notification.permission === "default") {
-            Notification.requestPermission().then((permission) => {
-                if (permission === "granted") {
-                    new Notification("¡Gracias!", { body: "Ahora recibirás tus recordatorios." });
+                else if (!event.target.closest('.menu-recordatorio')) {
+                    document.querySelectorAll('.menu-recordatorio').forEach(m => m.classList.add('hidden'));
                 }
             });
         }
-    }
 
-    // (¡NUEVO!) Inicializar la lógica de la alarma (está en la SECCIÓN 7)
-    initAlarmSlider();
+        // =======================================================
+        // SECCIÓN 2.5: LÓGICA DE LA PÁGINA DE PERFIL (¡MODIFICADA!)
+        // =======================================================
 
-    // =======================================================
-    // SECCIÓN 2: LÓGICA DE LA PÁGINA DE INICIO (INDEX)
-    // =======================================================
-    const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
+        const btnBack = document.getElementById('btn-back');
 
-    if (contenedorRecordatorios) {
-        mostrarRecordatoriosIndex(contenedorRecordatorios);
+        // Solo ejecutar esta lógica si estamos en la página de perfil (btnBack existe)
 
-        contenedorRecordatorios.addEventListener('click', (event) => {
+        if (btnBack) {
 
-            const botonMenu = event.target.closest('.btn-menu');
-            const botonBorrar = event.target.closest('.btn-borrar-menu');
+            // --- 1. Definir estados y elementos ---
 
-            const botonEditar = event.target.closest('.btn-editar');
+            let initialState = {};
+            let currentState = {};
 
-            const menuActual = botonMenu ? botonMenu.nextElementSibling : null;
+            // Elementos del Modal
 
-            document.querySelectorAll('.menu-recordatorio').forEach(menu => {
-                if (menu !== menuActual) {
-                    menu.classList.add('hidden');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const modalBtnSave = document.getElementById('modal-btn-save');
+
+            const modalBtnDiscard = document.getElementById('modal-btn-discard');
+
+            // Elementos de Tema
+
+            const themeSelector = document.getElementById('theme-selector');
+            const lightBtn = document.getElementById('btn-theme-light');
+
+            const darkBtn = document.getElementById('btn-theme-dark');
+            const contrastBtn = document.getElementById('btn-theme-contrast');
+
+            const themeButtons = [lightBtn, darkBtn, contrastBtn];
+            const inactiveClasses = 'border-slate-700';
+
+            const activeClasses = 'border-primary bg-primary/10';
+
+            // Elementos de Fuente
+
+            const fontSizeSlider = document.getElementById('fontSize');
+            const sizeMap = ['85%', '92.5%', '100%', '107.5%', '115%'];
+
+            // Elementos de Perfil
+
+            const inputFullName = document.getElementById('fullName');
+            const inputEmail = document.getElementById('email');
+
+            const headerName = document.getElementById('header-name');
+            const headerEmail = document.getElementById('header-email');
+
+            // Elemento de Sonido
+
+            const volumeSlider = document.getElementById('volumeSlider');
+
+            // --- 2. Funciones de Carga y Guardado ---
+
+
+            function loadInitialState() {
+                initialState = {
+
+                    theme: localStorage.getItem('theme') || 'dark',
+                    fontSize: localStorage.getItem('fontSize') || '2',
+                    name: localStorage.getItem('profileName') || 'Carlos Pérez',
+                    email: localStorage.getItem('profileEmail') || 'carlos.perez@ejemplo.com',
+                    volume: localStorage.getItem('profileVolume') || '75'
+                };
+                // El estado actual empieza igual que el inicial
+
+                currentState = { ...initialState };
+            }
+
+            function loadUiFromState(state) {
+
+                // Cargar Tema
+                document.documentElement.classList.remove('dark', 'light', 'high-contrast');
+
+                if (state.theme !== 'light') {
+                    document.documentElement.classList.add(state.theme);
                 }
-            });
 
-            if (botonMenu) {
+                updateButtonState(state.theme);
 
-                event.preventDefault();
-                menuActual.classList.toggle('hidden');
-            }
-            else if (botonBorrar) {
+                // Cargar Fuente
 
-                event.preventDefault();
-                borrarRecordatorio(botonBorrar.dataset.id);
-            }
-            else if (botonEditar) {
+                document.documentElement.style.fontSize = sizeMap[state.fontSize];
+                fontSizeSlider.value = state.fontSize;
 
-                event.preventDefault();
-                alert("Función 'Editar' aún no implementada.");
-                botonEditar.closest('.menu-recordatorio').classList.add('hidden');
-            }
+                // Cargar Perfil
 
-            else if (!event.target.closest('.menu-recordatorio')) {
-                document.querySelectorAll('.menu-recordatorio').forEach(m => m.classList.add('hidden'));
-            }
-        });
-    }
+                inputFullName.value = state.name;
+                inputEmail.value = state.email;
 
-    // =======================================================
-    // SECCIÓN 2.5: LÓGICA DE LA PÁGINA DE PERFIL (¡MODIFICADA!)
-    // =======================================================
+                headerName.textContent = state.name;
+                headerEmail.textContent = state.email;
 
-    const btnBack = document.getElementById('btn-back');
+                // Cargar Volumen
 
-    // Solo ejecutar esta lógica si estamos en la página de perfil (btnBack existe)
-
-    if (btnBack) {
-
-        // --- 1. Definir estados y elementos ---
-
-        let initialState = {};
-        let currentState = {};
-
-        // Elementos del Modal
-
-        const modalBackdrop = document.getElementById('modal-backdrop');
-        const modalBtnSave = document.getElementById('modal-btn-save');
-
-        const modalBtnDiscard = document.getElementById('modal-btn-discard');
-
-        // Elementos de Tema
-
-        const themeSelector = document.getElementById('theme-selector');
-        const lightBtn = document.getElementById('btn-theme-light');
-
-        const darkBtn = document.getElementById('btn-theme-dark');
-        const contrastBtn = document.getElementById('btn-theme-contrast');
-
-        const themeButtons = [lightBtn, darkBtn, contrastBtn];
-        const inactiveClasses = 'border-slate-700';
-
-        const activeClasses = 'border-primary bg-primary/10';
-
-        // Elementos de Fuente
-
-        const fontSizeSlider = document.getElementById('fontSize');
-        const sizeMap = ['85%', '92.5%', '100%', '107.5%', '115%'];
-
-        // Elementos de Perfil
-
-        const inputFullName = document.getElementById('fullName');
-        const inputEmail = document.getElementById('email');
-
-        const headerName = document.getElementById('header-name');
-        const headerEmail = document.getElementById('header-email');
-
-        // Elemento de Sonido
-
-        const volumeSlider = document.getElementById('volumeSlider');
-
-        // --- 2. Funciones de Carga y Guardado ---
-
-
-        function loadInitialState() {
-            initialState = {
-
-                theme: localStorage.getItem('theme') || 'dark',
-                fontSize: localStorage.getItem('fontSize') || '2',
-                name: localStorage.getItem('profileName') || 'Carlos Pérez',
-                email: localStorage.getItem('profileEmail') || 'carlos.perez@ejemplo.com',
-                volume: localStorage.getItem('profileVolume') || '75'
-            };
-            // El estado actual empieza igual que el inicial
-
-            currentState = { ...initialState };
-        }
-
-        function loadUiFromState(state) {
-
-            // Cargar Tema
-            document.documentElement.classList.remove('dark', 'light', 'high-contrast');
-
-            if (state.theme !== 'light') {
-                document.documentElement.classList.add(state.theme);
+                volumeSlider.value = state.volume;
             }
 
-            updateButtonState(state.theme);
 
-            // Cargar Fuente
+            function saveCurrentState() {
+                localStorage.setItem('theme', currentState.theme);
 
-            document.documentElement.style.fontSize = sizeMap[state.fontSize];
-            fontSizeSlider.value = state.fontSize;
+                localStorage.setItem('fontSize', currentState.fontSize);
+                localStorage.setItem('profileName', currentState.name);
 
-            // Cargar Perfil
+                localStorage.setItem('profileEmail', currentState.email);
+                localStorage.setItem('profileVolume', currentState.volume);
+                // Sincronizar initialState para que no vuelva a preguntar
 
-            inputFullName.value = state.name;
-            inputEmail.value = state.email;
-
-            headerName.textContent = state.name;
-            headerEmail.textContent = state.email;
-
-            // Cargar Volumen
-
-            volumeSlider.value = state.volume;
-        }
-
-
-        function saveCurrentState() {
-            localStorage.setItem('theme', currentState.theme);
-
-            localStorage.setItem('fontSize', currentState.fontSize);
-            localStorage.setItem('profileName', currentState.name);
-
-            localStorage.setItem('profileEmail', currentState.email);
-            localStorage.setItem('profileVolume', currentState.volume);
-            // Sincronizar initialState para que no vuelva a preguntar
-
-            initialState = { ...currentState };
-        }
-
-        function updateButtonState(currentTheme) {
-
-            const activeClassesArray = activeClasses.split(' ');
-            themeButtons.forEach(btn => {
-
-                btn.classList.remove(...activeClassesArray);
-                btn.classList.add(inactiveClasses);
-            });
-
-            if (currentTheme === 'light') {
-
-                lightBtn.classList.add(...activeClassesArray);
-                lightBtn.classList.remove(inactiveClasses);
-            } else if (currentTheme === 'dark') {
-
-                darkBtn.classList.add(...activeClassesArray);
-                darkBtn.classList.remove(inactiveClasses);
-            } else if (currentTheme === 'high-contrast') {
-
-                contrastBtn.classList.add(...activeClassesArray);
-                contrastBtn.classList.remove(inactiveClasses);
+                initialState = { ...currentState };
             }
-        }
 
-        // --- 3. Inicializar la página ---
+            function updateButtonState(currentTheme) {
 
-        loadInitialState();
-        loadUiFromState(initialState);
+                const activeClassesArray = activeClasses.split(' ');
+                themeButtons.forEach(btn => {
 
+                    btn.classList.remove(...activeClassesArray);
+                    btn.classList.add(inactiveClasses);
+                });
 
-        // --- 4. Listeners (¡YA NO GUARDAN!) ---
+                if (currentTheme === 'light') {
 
+                    lightBtn.classList.add(...activeClassesArray);
+                    lightBtn.classList.remove(inactiveClasses);
+                } else if (currentTheme === 'dark') {
 
-        // Tema
-        lightBtn.addEventListener('click', () => {
+                    darkBtn.classList.add(...activeClassesArray);
+                    darkBtn.classList.remove(inactiveClasses);
+                } else if (currentTheme === 'high-contrast') {
 
-            document.documentElement.classList.remove('dark', 'high-contrast');
-            currentState.theme = 'light';
-            updateButtonState('light');
-        });
-        darkBtn.addEventListener('click', () => {
-
-            document.documentElement.classList.remove('light', 'high-contrast');
-            document.documentElement.classList.add('dark');
-            currentState.theme = 'dark';
-            updateButtonState('dark');
-        });
-        contrastBtn.addEventListener('click', () => {
-
-            document.documentElement.classList.remove('light', 'dark');
-            document.documentElement.classList.add('high-contrast');
-            currentState.theme = 'high-contrast';
-            updateButtonState('high-contrast');
-        });
-
-        // Fuente
-
-        fontSizeSlider.addEventListener('input', () => {
-            const newIndex = fontSizeSlider.value;
-
-            currentState.fontSize = newIndex;
-            document.documentElement.style.fontSize = sizeMap[newIndex];
-        });
-
-        // Perfil
-
-        inputFullName.addEventListener('input', () => {
-            const newName = inputFullName.value;
-
-            currentState.name = newName;
-            headerName.textContent = newName;
-        });
-        inputEmail.addEventListener('input', () => {
-
-            const newEmail = inputEmail.value;
-            currentState.email = newEmail;
-            headerEmail.textContent = newEmail;
-        });
-
-        // Volumen
-
-        volumeSlider.addEventListener('input', () => {
-            currentState.volume = volumeSlider.value;
-        });
-
-        // --- 5. Lógica de Salida (Modal) ---
-
-
-        btnBack.addEventListener('click', (event) => {
-            event.preventDefault(); // ¡Detener la navegación!
-
-            const hasChanges =
-
-                initialState.theme !== currentState.theme ||
-                initialState.fontSize !== currentState.fontSize ||
-                initialState.name !== currentState.name ||
-                initialState.email !== currentState.email ||
-                initialState.volume !== currentState.volume;
-
-            if (hasChanges) {
-
-                // Si hay cambios, mostrar modal
-                modalBackdrop.classList.remove('hidden');
-            } else {
-
-                // Si no hay cambios, navegar
-                window.location.href = btnBack.href;
+                    contrastBtn.classList.add(...activeClassesArray);
+                    contrastBtn.classList.remove(inactiveClasses);
+                }
             }
-        });
 
-        modalBtnSave.addEventListener('click', () => {
+            // --- 3. Inicializar la página ---
 
-            saveCurrentState(); // Guardar
-            modalBackdrop.classList.add('hidden');
-            window.location.href = btnBack.href; // Navegar
-        });
-
-        // (¡MODIFICADO!) Flujo de "No" actualizado
-        modalBtnDiscard.addEventListener('click', () => {
-            // 1. No guardar, revertir la UI al estado original
+            loadInitialState();
             loadUiFromState(initialState);
-            // 2. Sincronizar el estado actual de vuelta al original
-            currentState = { ...initialState };
-            // 3. Ocultar el modal
-            modalBackdrop.classList.add('hidden');
-            // 4. NO navegar, quedarse en la página
-        });
-    }
-    // ===================================================
 
 
-    const timeButton = document.getElementById('btn-time-picker');
-    const timeInput = document.getElementById('med-time');
+            // --- 4. Listeners (¡YA NO GUARDAN!) ---
 
-    if (timeButton && timeInput) {
-        timeButton.addEventListener('click', () => {
 
-            try { timeInput.showPicker(); } catch (error) { timeInput.focus(); }
-        });
-    }
-});
+            // Tema
+            lightBtn.addEventListener('click', () => {
+
+                document.documentElement.classList.remove('dark', 'high-contrast');
+                currentState.theme = 'light';
+                updateButtonState('light');
+            });
+            darkBtn.addEventListener('click', () => {
+
+                document.documentElement.classList.remove('light', 'high-contrast');
+                document.documentElement.classList.add('dark');
+                currentState.theme = 'dark';
+                updateButtonState('dark');
+            });
+            contrastBtn.addEventListener('click', () => {
+
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add('high-contrast');
+                currentState.theme = 'high-contrast';
+                updateButtonState('high-contrast');
+            });
+
+            // Fuente
+
+            fontSizeSlider.addEventListener('input', () => {
+                const newIndex = fontSizeSlider.value;
+
+                currentState.fontSize = newIndex;
+                document.documentElement.style.fontSize = sizeMap[newIndex];
+            });
+
+            // Perfil
+
+            inputFullName.addEventListener('input', () => {
+                const newName = inputFullName.value;
+
+                currentState.name = newName;
+                headerName.textContent = newName;
+            });
+            inputEmail.addEventListener('input', () => {
+
+                const newEmail = inputEmail.value;
+                currentState.email = newEmail;
+                headerEmail.textContent = newEmail;
+            });
+
+            // Volumen
+
+            volumeSlider.addEventListener('input', () => {
+                currentState.volume = volumeSlider.value;
+            });
+
+            // --- 5. Lógica de Salida (Modal) ---
+
+
+            btnBack.addEventListener('click', (event) => {
+                event.preventDefault(); // ¡Detener la navegación!
+
+                const hasChanges =
+
+                    initialState.theme !== currentState.theme ||
+                    initialState.fontSize !== currentState.fontSize ||
+                    initialState.name !== currentState.name ||
+                    initialState.email !== currentState.email ||
+                    initialState.volume !== currentState.volume;
+
+                if (hasChanges) {
+
+                    // Si hay cambios, mostrar modal
+                    modalBackdrop.classList.remove('hidden');
+                } else {
+
+                    // Si no hay cambios, navegar
+                    window.location.href = btnBack.href;
+                }
+            });
+
+            modalBtnSave.addEventListener('click', () => {
+
+                saveCurrentState(); // Guardar
+                modalBackdrop.classList.add('hidden');
+                window.location.href = btnBack.href; // Navegar
+            });
+
+            // (¡MODIFICADO!) Flujo de "No" actualizado
+            modalBtnDiscard.addEventListener('click', () => {
+                // 1. No guardar, revertir la UI al estado original
+                loadUiFromState(initialState);
+                // 2. Sincronizar el estado actual de vuelta al original
+                currentState = { ...initialState };
+                // 3. Ocultar el modal
+                modalBackdrop.classList.add('hidden');
+                // 4. NO navegar, quedarse en la página
+            });
+        }
+        // ===================================================
+
+
+        const timeButton = document.getElementById('btn-time-picker');
+        const timeInput = document.getElementById('med-time');
+
+        if (timeButton && timeInput) {
+            timeButton.addEventListener('click', () => {
+
+                try { timeInput.showPicker(); } catch (error) { timeInput.focus(); }
+            });
+        }
+    });
 
 
 /**
@@ -702,7 +714,7 @@ function crearTarjetaRecordatorio(recordatorio) {
                 <p class="text-3xl font-bold text-zinc-200">${recordatorio.nombre}</p>
                 
                 <p class="text-2xl text-white">${recordatorio.dosis || 'Sin dosis'}</p>
- ...
+ 
             </div>
             
             <div class="flex flex-1 items-center justify-center rounded-xl bg-zinc-800">
