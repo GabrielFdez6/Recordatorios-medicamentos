@@ -1,4 +1,4 @@
-// --- main.js (Versión con Lógica de TEMA, FUENTE y CONFIRMAR AL SALIR) ---
+// --- main.js (Versión CORREGIDA con Lógica de TEMA, FUENTE y CONFIRMAR AL SALIR) ---
 
 /**
  * =======================================================
@@ -53,34 +53,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // El sonido no se reproducirá hasta que el usuario interactúe.
 
     const alarmSoundForPriming = document.getElementById('alarm-sound');
-    let isAudioPrimed = false; // Bandera para saber si ya lo desbloqueamos
+
+    // ⬇️ --- CAMBIO 1: Eliminamos la variable 'isAudioPrimed' ---
+    // let isAudioPrimed = false; // (Ya no se usa)
 
     function primeAudioOnClick() {
-        if (isAudioPrimed || !alarmSoundForPriming) {
-            return; // Ya está desbloqueado
+
+        // ⬇️ --- CAMBIO 2: Usamos 'sessionStorage' para recordar entre páginas ---
+        if (sessionStorage.getItem('isAudioPrimed') === 'true' || !alarmSoundForPriming) {
+            return; // Ya está desbloqueado en esta sesión
         }
 
-        console.log("Intentando preparar el audio...");
+        console.log("Intentando preparar el audio (silenciosamente)...");
 
-        // Intentamos reproducir.
-        // NOTA: Esto PUEDE causar un "blip" o "clic" corto la primera vez.
-        // ¡Esto es BUENO! Es la señal de que el navegador desbloqueó el audio.
+        // ⬇️ --- CAMBIO 3: Silenciamos el audio ANTES de reproducirlo ---
+        alarmSoundForPriming.muted = true;
+
+        // Intentamos reproducir (silenciosamente).
         alarmSoundForPriming.play().then(() => {
             // ¡Éxito! El navegador nos dejó.
             // Lo pausamos inmediatamente.
             alarmSoundForPriming.pause();
             alarmSoundForPriming.currentTime = 0;
 
-            isAudioPrimed = true;
+            // ⬇️ --- CAMBIO 4: Reactivamos el sonido y guardamos el estado en la sesión ---
+            alarmSoundForPriming.muted = false; // ¡Importante! Lo reactivamos para la alarma real
+            sessionStorage.setItem('isAudioPrimed', 'true'); // Guardamos en la sesión
+
             console.log("¡Audio preparado (desbloqueado)!");
 
             // Una vez que funciona, removemos los listeners.
             document.removeEventListener('click', primeAudioOnClick);
             document.removeEventListener('touchstart', primeAudioOnClick);
+
         }).catch(error => {
             // El navegador aún lo bloqueó. No pasa nada.
             // El listener seguirá activo y lo intentará en el próximo clic.
             console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+
+            // ⬇️ --- CAMBIO 4 (Fallback): Nos aseguramos de quitar el mute si falla ---
+            alarmSoundForPriming.muted = false;
         });
     }
 
