@@ -1,4 +1,4 @@
-// --- main.js (Versión MODIFICADA con Autocompletar) ---
+// --- main.js (Versión MODIFICADA con Arreglo de Diseño y Lista Ampliada) ---
 
 /**
  * =======================================================
@@ -456,39 +456,218 @@ document.addEventListener('DOMContentLoaded', () => {
  * =======================================================
  */
 
-// --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬇️ ---
-// Lista de medicamentos (puedes añadir todos los que quieras)
+// --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Nueva Lista) ⬇️ ---
+// Tu lista de medicamentos, limpiada y ordenada alfabéticamente
 const MEDICAMENTOS_COMUNES = [
-    'Paracetamol',
-    'Ibuprofeno',
-    'Aspirina',
-    'Omeprazol',
+    'Aciclovir',
+    'Ácido acetilsalicílico',
+    'Ácido clavulánico',
+    'Ácido fusídico',
+    'Ácido valproico',
+    'Albendazol',
+    'Alprazolam',
+    'Amitriptilina',
+    'Amlodipino',
     'Amoxicilina',
-    'Metformina',
+    'Ampicilina',
+    'Aripiprazol',
+    'Aspirina',
+    'Atenolol',
     'Atorvastatina',
-    'Losartán',
-    'Salbutamol',
-    'Sertralina',
+    'Azatioprina',
+    'Azitromicina',
+    'Betametasona',
+    'Bupropión',
+    'Buspirona',
+    'Carbamazepina',
+    'Captopril',
+    'Cefalexina',
+    'Ceftriaxona',
+    'Celecoxib',
+    'Cetirizina',
+    'Ciclosporina',
     'Ciprofloxacino',
+    'Ciprofloxacino oftálmico',
+    'Cisplatino',
+    'Citalopram',
+    'Claritromicina',
+    'Clindamicina',
     'Clonazepam',
+    'Clopidogrel',
+    'Clorfenamina',
+    'Clotrimazol',
+    'Clozapina',
+    'Codeína',
+    'Desloratadina',
+    'Dexametasona',
+    'Diazepam',
     'Diclofenaco',
+    'Difenhidramina',
+    'Digoxina',
+    'Domperidona',
+    'Donepezilo',
+    'Doxorrubicina',
+    'Doxiciclina',
+    'Duloxetina',
+    'Dutasterida',
+    'Empagliflozina',
+    'Enalapril',
+    'Eritromicina',
+    'Escitalopram',
+    'Esomeprazol',
+    'Espironolactona',
+    'Estradiol',
+    'Etoricoxib',
+    'Famotidina',
+    'Fenitoína',
+    'Fexofenadina',
+    'Finasterida',
+    'Fluconazol',
+    'Fluoxetina',
+    'Furosemida',
+    'Gabapentina',
+    'Gentamicina',
+    'Glibenclamida',
+    'Haloperidol',
+    'Heparina',
+    'Hidroclorotiazida',
+    'Hidrocodona',
+    'Hidrocortisona',
+    'Hidroxicina',
+    'Ibuprofeno',
+    'Indometacina',
     'Insulina',
+    'Isoniazida',
+    'Itraconazol',
+    'Ivermectina',
+    'Ketoconazol',
+    'Ketorolaco',
+    'Lamivudina',
+    'Lamotrigina',
+    'Lansoprazol',
+    'Latanoprost',
+    'Levetiracetam',
+    'Levocetirizina',
+    'Levofloxacino',
+    'Levotiroxina',
+    'Loperamida',
+    'Lorazepam',
     'Loratadina',
+    'Losartán',
+    'Mebendazol',
+    'Meloxicam',
+    'Metamizol',
+    'Metformina',
+    'Metilprednisolona',
+    'Metoclopramida',
     'Metoprolol',
+    'Metotrexato',
+    'Metronidazol',
+    'Miconazol',
+    'Midazolam',
+    'Mirtazapina',
+    'Morfina',
+    'Naproxeno',
+    'Neomicina',
+    'Nifedipino',
+    'Nistatina',
+    'Nitazoxanida',
+    'Olanzapina',
+    'Omeprazol',
+    'Ondansetrón',
+    'Oseltamivir',
+    'Oxicodona',
+    'Pantoprazol',
+    'Paracetamol',
+    'Paroxetina',
+    'Penicilina G / V',
+    'Permetrina',
+    'Pioglitazona',
+    'Piroxicam',
+    'Praziquantel',
     'Prednisona',
-    'Warfarina'
+    'Pregabalina',
+    'Propranolol',
+    'Quetiapina',
+    'Ramipril',
+    'Ranitidina',
+    'Remdesivir',
+    'Rifampicina',
+    'Risperidona',
+    'Rosuvastatina',
+    'Salbutamol',
+    'Sales de rehidratación oral',
+    'Sertralina',
+    'Sildenafil',
+    'Simvastatina',
+    'Sitagliptina',
+    'Sucralfato',
+    'Sulindaco',
+    'Tacrolimus',
+    'Tadalafilo',
+    'Tamoxifeno',
+    'Tamsulosina',
+    'Tenofovir',
+    'Testosterona',
+    'Timolol',
+    'Tobramicina',
+    'Tramadol',
+    'Valaciclovir',
+    'Vancomicina',
+    'Venlafaxina',
+    'Warfarina',
+    'Zanamivir',
+    'Zidovudina',
+    'Zolpidem'
 ];
-
-// --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬆️ ---
+// --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Nueva Lista) ⬆️ ---
 
 
 const botonAgregar = document.getElementById('btn-agregar');
 
 if (botonAgregar) {
 
-    // --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬇️ ---
+    // --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Lógica de Autocompletar CORREGIDA) ⬇️ ---
     const medNameInput = document.getElementById('med-name');
+    const medNameContainer = medNameInput.parentElement; // El div que tiene las esquinas
+    const medNameButton = medNameContainer.querySelector('button'); // El botón de micrófono
     const medSuggestionsBox = document.getElementById('med-suggestions');
+
+    // Funciones para arreglar el diseño
+    function showSuggestions() {
+        // 1. Contenedor: Quita redondeo completo, pone solo arriba
+        medNameContainer.classList.remove('rounded-xl');
+        medNameContainer.classList.add('rounded-t-xl');
+
+        // 2. Input: Quita redondeo izquierdo, pone solo arriba-izquierdo
+        medNameInput.classList.remove('rounded-l-xl');
+        medNameInput.classList.add('rounded-tl-xl');
+
+        // 3. Botón: Quita redondeo derecho, pone solo arriba-derecho
+        medNameButton.classList.remove('rounded-r-xl');
+        medNameButton.classList.add('rounded-tr-xl');
+
+        // 4. Muestra la caja de sugerencias
+        medSuggestionsBox.classList.remove('hidden');
+    }
+
+    function hideSuggestions() {
+        // 1. Contenedor: Quita redondeo de arriba, pone completo
+        medNameContainer.classList.remove('rounded-t-xl');
+        medNameContainer.classList.add('rounded-xl');
+
+        // 2. Input: Quita redondeo arriba-izquierdo, pone izquierdo
+        medNameInput.classList.remove('rounded-tl-xl');
+        medNameInput.classList.add('rounded-l-xl');
+
+        // 3. Botón: Quita redondeo arriba-derecho, pone derecho
+        medNameButton.classList.remove('rounded-tr-xl');
+        medNameButton.classList.add('rounded-r-xl');
+
+        // 4. Oculta la caja de sugerencias
+        medSuggestionsBox.classList.add('hidden');
+    }
+
 
     // 1. Mostrar sugerencias al escribir
     medNameInput.addEventListener('input', () => {
@@ -496,7 +675,7 @@ if (botonAgregar) {
         medSuggestionsBox.innerHTML = ''; // Limpiar sugerencias anteriores
 
         if (inputText.length === 0) {
-            medSuggestionsBox.classList.add('hidden'); // Ocultar si no hay texto
+            hideSuggestions(); // Ocultar si no hay texto
             return;
         }
 
@@ -505,7 +684,7 @@ if (botonAgregar) {
         );
 
         if (suggestions.length === 0) {
-            medSuggestionsBox.classList.add('hidden'); // Ocultar si no hay coincidencias
+            hideSuggestions(); // Ocultar si no hay coincidencias
             return;
         }
 
@@ -518,7 +697,7 @@ if (botonAgregar) {
             medSuggestionsBox.appendChild(suggestionEl);
         });
 
-        medSuggestionsBox.classList.remove('hidden'); // Mostrar la caja
+        showSuggestions(); // Mostrar la caja y arreglar esquinas
     });
 
     // 2. Autocompletar al hacer clic en una sugerencia
@@ -527,7 +706,7 @@ if (botonAgregar) {
         if (clickedSuggestion) {
             medNameInput.value = clickedSuggestion.dataset.name; // Poner el texto en el input
             medSuggestionsBox.innerHTML = ''; // Limpiar
-            medSuggestionsBox.classList.add('hidden'); // Ocultar
+            hideSuggestions(); // Ocultar y arreglar esquinas
             medNameInput.focus(); // Devolver el foco al input
         }
     });
@@ -537,10 +716,10 @@ if (botonAgregar) {
         // Se usa un pequeño retraso (timeout) para que el evento 'click' 
         // de la sugerencia pueda registrarse antes de que se oculte la caja.
         setTimeout(() => {
-            medSuggestionsBox.classList.add('hidden');
+            hideSuggestions();
         }, 150);
     });
-    // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬆️ ---
+    // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Lógica de Autocompletar CORREGIDA) ⬆️ ---
 
 
     // Lógica del botón "Agregar" (existente)
@@ -716,7 +895,7 @@ function revisarRecordatorios() {
                 // Esta fue la última dosis, marcar como completado
                 recordatorio.completado = true;
             } else {
-                // Programar la siguiente dosis normalmente
+                // Programar la siguiente dosis normally
                 recordatorio.proximaDosis = proximaDosisNueva;
             }
             // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 4) ⬆️ ---
@@ -967,7 +1146,7 @@ function showAlarm(recordatorio) {
 /**
  * Oculta la pantalla de alarma y detiene el sonido
  */
-function hideAlarm() {
+function hideSuggestions() {
     if (!alarmModal) alarmModal = document.getElementById('alarm-modal');
     if (!alarmSound) alarmSound = document.getElementById('alarm-sound');
 
