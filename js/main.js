@@ -1,4 +1,4 @@
-// --- main.js (Versión CORREGIDA con Bucle Silencioso) ---
+// --- main.js (Versión MODIFICADA con botones visibles) ---
 
 /**
  * =======================================================
@@ -167,46 +167,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
 
+    // --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 2) ⬇️ ---
+    // Este bloque es ahora mucho más simple
     if (contenedorRecordatorios) {
         mostrarRecordatoriosIndex(contenedorRecordatorios);
 
+        // Listener simplificado
         contenedorRecordatorios.addEventListener('click', (event) => {
 
-            const botonMenu = event.target.closest('.btn-menu');
             const botonBorrar = event.target.closest('.btn-borrar-menu');
-
             const botonEditar = event.target.closest('.btn-editar');
 
-            const menuActual = botonMenu ? botonMenu.nextElementSibling : null;
-
-            document.querySelectorAll('.menu-recordatorio').forEach(menu => {
-                if (menu !== menuActual) {
-                    menu.classList.add('hidden');
-                }
-            });
-
-            if (botonMenu) {
-
+            if (botonBorrar) {
                 event.preventDefault();
-                menuActual.classList.toggle('hidden');
-            }
-            else if (botonBorrar) {
-
-                event.preventDefault();
+                // Llama a la función de borrar (SECCIÓN 6)
                 borrarRecordatorio(botonBorrar.dataset.id);
             }
             else if (botonEditar) {
-
                 event.preventDefault();
+                // Muestra la alerta (como antes)
                 alert("Función 'Editar' aún no implementada.");
-                botonEditar.closest('.menu-recordatorio').classList.add('hidden');
-            }
-
-            else if (!event.target.closest('.menu-recordatorio')) {
-                document.querySelectorAll('.menu-recordatorio').forEach(m => m.classList.add('hidden'));
             }
         });
     }
+    // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 2) ⬆️ ---
+
 
     // =======================================================
     // SECCIÓN 2.5: LÓGICA DE LA PÁGINA DE PERFIL (¡MODIFICADA!)
@@ -699,49 +684,43 @@ function crearTarjetaRecordatorio(recordatorio) {
 
     const colorIcono = recordatorio.frecuencia === 1 ? 'text-warning' : 'text-primary';
 
+    // --- INICIO DE LA MODIFICACIÓN ---
     return `
-        <div class="relative flex items-stretch gap-4 overflow-hidden rounded-xl bg-card-dark p-6 min-h-[11rem]">
-            <div class="absolute left-0 top-0 h-full w-1.5 ${colorBarra}"></div>
- 
-            <div class="flex flex-[2_2_0px] flex-col justify-center gap-1.5 pl-3">
-                
-                <p class="text-5xl font-bold text-white">${horaFormato}</p>
-                
- 
-                <p class="text-3xl font-bold text-zinc-200">${recordatorio.nombre}</p>
-                
-                <p class="text-2xl text-white">${recordatorio.dosis || 'Sin dosis'}</p>
- 
-            </div>
+        <div class="flex rounded-xl bg-card-dark overflow-hidden">
             
-            <div class="flex flex-1 items-center justify-center rounded-xl bg-zinc-800">
- 
-                <span class="material-symbols-outlined text-6xl ${colorIcono}">${icon}</span>
-            </div>
-            
-            <button type="button" class="btn-menu absolute top-3 right-3 flex size-12 items-center justify-center rounded-full bg-surface-dark text-white border border-zinc-600 hover:bg-zinc-700">
- 
-                <span class="material-symbols-outlined !text-3xl">more_vert</span>
-            </button>
+            <div class="w-1.5 ${colorBarra}"></div>
 
-            <div class="menu-recordatorio absolute top-16 right-3 z-10 w-48 rounded-lg bg-surface-dark shadow-lg hidden overflow-hidden">
- 
-                <a href="#" data-id="${recordatorio.id}" class="btn-editar flex items-center gap-3 px-4 py-3 text-xl text-white hover:bg-zinc-700">
-                    <span class="material-symbols-outlined">edit</span>
- 
-                    Editar
-                </a>
-                <a href="#" data-id="${recordatorio.id}" class="btn-borrar-menu flex items-center gap-3 px-4 py-3 text-xl text-red-400 hover:bg-zinc-700">
- 
-                    <span class="material-symbols-outlined">delete</span>
-                    Eliminar
- 
-                </a>
+            <div class="flex flex-col flex-1">
+        
+                <div class="flex items-stretch gap-4 p-6 min-h-[11rem]">
+    
+                    <div class="flex flex-[2_2_0px] flex-col justify-center gap-1.5">
+                        <p class="text-5xl font-bold text-white">${horaFormato}</p>
+                        <p class="text-3xl font-bold text-zinc-200">${recordatorio.nombre}</p>
+                        <p class="text-2xl text-white">${recordatorio.dosis || 'Sin dosis'}</p>
+                    </div>
+                    
+                    <div class="flex flex-1 items-center justify-center rounded-xl bg-zinc-800">
+                        <span class="material-symbols-outlined text-6xl ${colorIcono}">${icon}</span>
+                    </div>
+                    
+                </div>
+
+                <div class="flex gap-4 px-6 py-4">
+                    
+                    <a href="#" data-id="${recordatorio.id}" class="btn-editar flex-1 flex items-center justify-center gap-3 rounded-lg bg-surface-dark px-5 py-3 text-xl font-bold text-white transition-colors hover:bg-zinc-700 border border-zinc-600">
+                        <span class="material-symbols-outlined">edit</span>
+                        <span>Editar</span>
+                    </a>
+
+                    <a href="#" data-id="${recordatorio.id}" class="btn-borrar-menu flex-1 flex items-center justify-center gap-3 rounded-lg bg-surface-dark px-5 py-3 text-xl font-bold text-red-400 transition-colors hover:bg-zinc-700 border border-zinc-600">
+                        <span class="material-symbols-outlined">delete</span>
+                        <span>Eliminar</span>
+                    </a>
+                </div>
             </div>
         </div>`;
 }
-// ===================================
-
 
 /**
 * =======================================================
