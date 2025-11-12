@@ -1225,7 +1225,7 @@ function initAlarmSlider() {
         // Comprobar si se deslizó lo suficiente (ej. 80% del camino)
         if (currentX > maxDragX * 0.8) {
             // ¡Deslizado! Ocultar alarma
-            hideAlarm();
+            hideSuggestions();
         } else {
             // No lo suficiente, regresar el thumb
             sliderThumb.style.transition = 'transform 0.3s ease';
@@ -1240,7 +1240,7 @@ function initAlarmSlider() {
     document.addEventListener('mouseup', onDragEnd);     // Escuchar en todo el documento
 
     // --- Asignar Eventos (Táctil) ---
-    sliderThumb.addEventListener('touchstart', onDragStart, { passive: true });
+    sliderThumb.addEventListener('touchstart', onDragStart, { passive: false });
     document.addEventListener('touchmove', onDragMove); // Escuchar en todo el documento
     document.addEventListener('touchend', onDragEnd);     // Escuchar en todo el documento
 }
