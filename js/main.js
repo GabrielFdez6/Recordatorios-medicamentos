@@ -1,4 +1,4 @@
-// --- main.js (Versión MODIFICADA con botones visibles) ---
+// --- main.js (Versión MODIFICADA con Autocompletar) ---
 
 /**
  * =======================================================
@@ -305,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
             initialState = { ...currentState };
         }
 
+
+
         function updateButtonState(currentTheme) {
 
             const activeClassesArray = activeClasses.split(' ');
@@ -453,9 +455,95 @@ document.addEventListener('DOMContentLoaded', () => {
  * SECCIÓN 3: LÓGICA DE LA PÁGINA "AGREGAR"
  * =======================================================
  */
+
+// --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬇️ ---
+// Lista de medicamentos (puedes añadir todos los que quieras)
+const MEDICAMENTOS_COMUNES = [
+    'Paracetamol',
+    'Ibuprofeno',
+    'Aspirina',
+    'Omeprazol',
+    'Amoxicilina',
+    'Metformina',
+    'Atorvastatina',
+    'Losartán',
+    'Salbutamol',
+    'Sertralina',
+    'Ciprofloxacino',
+    'Clonazepam',
+    'Diclofenaco',
+    'Insulina',
+    'Loratadina',
+    'Metoprolol',
+    'Prednisona',
+    'Warfarina'
+];
+
+// --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬆️ ---
+
+
 const botonAgregar = document.getElementById('btn-agregar');
 
 if (botonAgregar) {
+
+    // --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬇️ ---
+    const medNameInput = document.getElementById('med-name');
+    const medSuggestionsBox = document.getElementById('med-suggestions');
+
+    // 1. Mostrar sugerencias al escribir
+    medNameInput.addEventListener('input', () => {
+        const inputText = medNameInput.value.toLowerCase().trim();
+        medSuggestionsBox.innerHTML = ''; // Limpiar sugerencias anteriores
+
+        if (inputText.length === 0) {
+            medSuggestionsBox.classList.add('hidden'); // Ocultar si no hay texto
+            return;
+        }
+
+        const suggestions = MEDICAMENTOS_COMUNES.filter(med =>
+            med.toLowerCase().startsWith(inputText)
+        );
+
+        if (suggestions.length === 0) {
+            medSuggestionsBox.classList.add('hidden'); // Ocultar si no hay coincidencias
+            return;
+        }
+
+        suggestions.forEach(med => {
+            const suggestionEl = document.createElement('div');
+            // Estilos de Tailwind para que coincida con la app
+            suggestionEl.className = 'p-4 text-white text-lg bg-gray-900 border-b border-gray-700 last:border-b-0 hover:bg-surface-dark cursor-pointer';
+            suggestionEl.textContent = med;
+            suggestionEl.dataset.name = med; // Guardar el nombre
+            medSuggestionsBox.appendChild(suggestionEl);
+        });
+
+        medSuggestionsBox.classList.remove('hidden'); // Mostrar la caja
+    });
+
+    // 2. Autocompletar al hacer clic en una sugerencia
+    medSuggestionsBox.addEventListener('click', (event) => {
+        const clickedSuggestion = event.target.closest('[data-name]');
+        if (clickedSuggestion) {
+            medNameInput.value = clickedSuggestion.dataset.name; // Poner el texto en el input
+            medSuggestionsBox.innerHTML = ''; // Limpiar
+            medSuggestionsBox.classList.add('hidden'); // Ocultar
+            medNameInput.focus(); // Devolver el foco al input
+        }
+    });
+
+    // 3. Ocultar sugerencias si el usuario hace clic fuera (blur)
+    medNameInput.addEventListener('blur', () => {
+        // Se usa un pequeño retraso (timeout) para que el evento 'click' 
+        // de la sugerencia pueda registrarse antes de que se oculte la caja.
+        setTimeout(() => {
+            medSuggestionsBox.classList.add('hidden');
+        }, 150);
+    });
+    // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3 - Autocompletar) ⬆️ ---
+
+
+    // Lógica del botón "Agregar" (existente)
     botonAgregar.addEventListener('click', async () => {
 
         let permission = Notification.permission;
@@ -476,6 +564,10 @@ if (botonAgregar) {
 
         const fechaInicio = document.getElementById('med-date').value;
         const horaInicio = document.getElementById('med-time').value;
+
+        // --- (Modificación de fecha de fin - ya integrada) ---
+        const fechaFin = document.getElementById('med-date-end').value;
+
 
         if (!nombreMed || !frecuenciaMed || !fechaInicio || !horaInicio) {
             alert("Por favor, rellena todos los campos: nombre, frecuencia, fecha y hora.");
@@ -503,6 +595,26 @@ if (botonAgregar) {
             proximaDosisTimestamp += frecuenciaEnMS;
         }
 
+        // --- (Modificación de fecha de fin - ya integrada) ---
+        // Procesar la fecha de fin
+        let fechaFinTimestamp = null;
+        if (fechaFin) {
+            const partesFechaFin = fechaFin.split('-').map(Number);
+            const fechaFinObj = new Date();
+            // Establecer al FIN de ese día
+            fechaFinObj.setFullYear(partesFechaFin[0], partesFechaFin[1] - 1, partesFechaFin[2]);
+            fechaFinObj.setHours(23, 59, 59, 999);
+            fechaFinTimestamp = fechaFinObj.getTime();
+
+            // Validación simple
+            if (fechaFinTimestamp < fechaHoraInicio.getTime()) {
+                alert("La fecha de fin no puede ser anterior a la fecha de inicio.");
+                return;
+            }
+        }
+        // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 3) ⬆️ ---
+
+
         let recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
 
         const nuevoRecordatorio = {
@@ -513,6 +625,9 @@ if (botonAgregar) {
 
             frecuencia: parseInt(frecuenciaMed, 10),
             proximaDosis: proximaDosisTimestamp,
+
+            // --- (Modificación de fecha de fin - ya integrada) ---
+            fechaFin: fechaFinTimestamp, // Guardamos null o el timestamp
 
             completado: false
         };
@@ -547,6 +662,22 @@ function revisarRecordatorios() {
 
     recordatorios.forEach(recordatorio => {
 
+        // --- (Modificación de fecha de fin - ya integrada) ---
+        // 1. Si ya está completado, saltarlo.
+        if (recordatorio.completado) {
+            return; // Va al siguiente recordatorio del forEach
+        }
+
+        // 2. Si tiene fecha de fin Y la próxima dosis es DESPUÉS de esa fecha,
+        // marcarlo como completado y saltarlo.
+        if (recordatorio.fechaFin && recordatorio.proximaDosis > recordatorio.fechaFin) {
+            recordatorio.completado = true;
+            listaHaCambiado = true;
+            return; // Va al siguiente recordatorio
+        }
+        // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 4) ⬆️ ---
+
+
         // Comprobación de precisión: solo activar si está dentro del último segundo
         // (ahoraTimestamp - proximaDosis) < 1000ms (la duración de nuestro intervalo)
         const diferencia = ahoraTimestamp - recordatorio.proximaDosis;
@@ -577,10 +708,20 @@ function revisarRecordatorios() {
 
             // Actualizar la hora de la próxima dosis
             const frecuenciaEnMS = recordatorio.frecuencia * 60000;
+            const proximaDosisNueva = recordatorio.proximaDosis + frecuenciaEnMS;
 
-            recordatorio.proximaDosis = recordatorio.proximaDosis + frecuenciaEnMS;
+            // --- (Modificación de fecha de fin - ya integrada) ---
+            // 3. Revisar si la NUEVA dosis se pasa de la fecha de fin
+            if (recordatorio.fechaFin && proximaDosisNueva > recordatorio.fechaFin) {
+                // Esta fue la última dosis, marcar como completado
+                recordatorio.completado = true;
+            } else {
+                // Programar la siguiente dosis normalmente
+                recordatorio.proximaDosis = proximaDosisNueva;
+            }
+            // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 4) ⬆️ ---
+
             listaHaCambiado = true;
-
         }
     });
 
@@ -626,7 +767,14 @@ function mostrarRecordatoriosIndex(contenedor) {
     const finHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59).getTime();
     const finManana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 23, 59, 59).getTime();
 
-    const recordatoriosActivos = recordatorios.filter(r => r.proximaDosis >= inicioHoy);
+    // --- (Modificación de fecha de fin - ya integrada) ---
+    // Filtrar los completados ANTES de hacer cualquier otra cosa
+    const recordatoriosNoCompletados = recordatorios.filter(r => !r.completado);
+    // --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 5) ⬆️ ---
+
+
+    // Usar la lista filtrada (recordatoriosNoCompletados) de ahora en adelante
+    const recordatoriosActivos = recordatoriosNoCompletados.filter(r => r.proximaDosis >= inicioHoy);
     const hoy = recordatoriosActivos.filter(r => r.proximaDosis <= finHoy);
 
     const manana = recordatoriosActivos.filter(r => r.proximaDosis > finHoy && r.proximaDosis <= finManana);
@@ -670,6 +818,8 @@ function crearTitulo(titulo) {
     return `<h2 class="text-3xl font-bold text-white pt-6">${titulo}</h2>`;
 }
 
+// --- ⬇️ INICIO DE LA MODIFICACIÓN (SECCIÓN 5) ⬇️ ---
+// Esta función ahora crea la tarjeta con los botones visibles
 function crearTarjetaRecordatorio(recordatorio) {
 
     let icon = 'pill';
@@ -684,7 +834,7 @@ function crearTarjetaRecordatorio(recordatorio) {
 
     const colorIcono = recordatorio.frecuencia === 1 ? 'text-warning' : 'text-primary';
 
-    // --- INICIO DE LA MODIFICACIÓN ---
+    // El div principal ahora es un 'flex' (fila) para que la barra esté fuera
     return `
         <div class="flex rounded-xl bg-card-dark overflow-hidden">
             
@@ -721,6 +871,9 @@ function crearTarjetaRecordatorio(recordatorio) {
             </div>
         </div>`;
 }
+// --- ⬆️ FIN DE LA MODIFICACIÓN (SECCIÓN 5) ⬆️ ---
+// ===================================
+
 
 /**
 * =======================================================
