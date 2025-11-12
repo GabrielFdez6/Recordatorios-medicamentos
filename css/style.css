@@ -132,16 +132,26 @@ html:not(.dark):not(.high-contrast) #btn-theme-contrast span[class*="text-yellow
 
 
 /* --- Cabeceras y Pies de Página --- */
-/* --- Cabeceras y Pies de Página --- */
-html:not(.dark):not(.high-contrast) .bg-background-dark\/80,
-html:not(.dark):not(.high-contrast) header.bg-background-dark,
-html:not(.dark):not(.high-contrast) .dark\:bg-background-dark {
-    /* (¡NUEVO!) Selector para el modal de alarma */
-    background-color: #FFFFFF !important;
-    /* (¡CAMBIADO A BLANCO SÓLIDO!) */
+/* --- INICIO DE LA MODIFICACIÓN --- */
+/* Regla 1: Para los encabezados sticky (transparentes) */
+html:not(.dark):not(.high-contrast) .bg-background-dark\/80 {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    /* 80% blanco */
     border-bottom: 1px solid #d1d5db !important;
     transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
+
+/* Regla 2: Para el modal de alarma y otros (sólidos) */
+html:not(.dark):not(.high-contrast) header.bg-background-dark,
+html:not(.dark):not(.high-contrast) .dark\:bg-background-dark {
+    background-color: #FFFFFF !important;
+    /* Blanco sólido */
+    border-bottom: 1px solid #d1d5db !important;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* --- FIN DE LA MODIFICACIÓN --- */
+
 
 /* Fondo específico del modal de alarma en tema claro (sólido) */
 html:not(.dark):not(.high-contrast) #alarm-modal.bg-background-dark {
