@@ -112,6 +112,40 @@
         </div>
     </div>
 
+    <div id="voice-prompt-modal"
+        class="fixed inset-0 z-[200] flex h-full w-full flex-col items-center justify-center bg-background-dark p-6 text-white hidden">
+
+        <div class="flex flex-1 flex-col items-center justify-center text-center">
+            <span class="material-symbols-outlined text-9xl text-primary">
+                record_voice_over
+            </span>
+            <h2 class="mt-4 text-5xl font-bold">Bienvenido</h2>
+            <p class="mt-2 text-4xl font-medium text-zinc-200">
+                ¿Deseas activar la ayuda por voz?
+            </p>
+            <p class="text-3xl text-zinc-400 mt-4">
+                Podrás cambiar esto más tarde en Ajustes.
+            </p>
+        </div>
+
+        <div class="grid w-full grid-cols-1 gap-4 py-4 sm:grid-cols-2">
+            <button id="btn-voice-deactivate"
+                class="flex w-full items-center justify-center gap-3 rounded-xl bg-surface-dark py-5 text-xl font-bold text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <span>No, gracias</span>
+            </button>
+            <button id="btn-voice-activate"
+                class="flex w-full items-center justify-center gap-3 rounded-xl bg-primary py-5 text-xl font-bold text-white shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <span>Sí, activar</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="voice-status-icon"
+        class="fixed bottom-24 right-4 z-50 flex size-16 items-center justify-center rounded-full bg-primary/20 p-2 text-primary backdrop-blur-sm hidden">
+        <span class="material-symbols-outlined !text-5xl">mic</span>
+    </div>
+
+
     <audio id="alarm-sound" src="sounds/alarm.mp3" loop></audio>
     <audio id="silent-loop" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
         loop></audio>

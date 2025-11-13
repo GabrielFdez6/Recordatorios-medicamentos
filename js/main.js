@@ -1,4 +1,4 @@
-// --- main.js (Versión MODIFICADA con Arreglo de Diseño y Lista Ampliada) ---
+// --- main.js (Versión CORREGIDA con Gestor de Audio Unificado) ---
 
 /**
  * =======================================================
@@ -49,84 +49,170 @@ window.addEventListener('beforeunload', () => {
     if (silentLoop) {
         silentLoop.pause();
     }
+
+    // (NUEVO) Detener la voz y el micrófono si el usuario se va
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    // (NUEVO) Llama a la función de la SECCIÓN 8 para detener el mic
+    detenerEscuchaGlobal();
 });
 // --- ⬆️ FIN DEL CAMBIO 1 ⬆️ ---
 
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- ⬇️ INICIO DEL CAMBIO 2 (REESCRITO) ⬇️ ---
-    // --- ARRANQUE DE AUDIO CON BUCLE SILENCIOSO ---
+    // --- ⬇️ INICIO DE LA REESCRITURA (SECCIÓN 1) ⬇️ ---
+    // --- ARRANQUE DE AUDIO UNIFICADO ---
     const alarmSoundForPriming = document.getElementById('alarm-sound');
     const silentLoopSound = document.getElementById('silent-loop');
 
-    function primeAudioOnClick() {
-
-        // --- ⬇️ INICIO DE LA CORRECCIÓN ⬇️ ---
-        // Si la alarma ya está visible, no ejecutar esta función.
-        // El clic debe ser para el slider, no para 'preparar' el audio.
-        const modalAlarma = document.getElementById('alarm-modal');
-        if (modalAlarma && !modalAlarma.classList.contains('hidden')) {
-            return; // No hacer nada, la alarma está activa.
-        }
-        // --- ⬆️ FIN DE LA CORRECCIÓN ⬆️ ---
-
-        // Revisar si ya lo hicimos en esta sesión
+    /**
+     * Intenta desbloquear TODOS los audios (Alarma, Bucle Silencioso y Síntesis de Voz).
+     * Devuelve una promesa que se resuelve con 'true' (éxito) o 'false' (fallo).
+     */
+    function primeAllAudio() {
+        // 1. Revisar si ya lo hicimos en esta sesión
         if (sessionStorage.getItem('isAudioPrimed') === 'true' || !alarmSoundForPriming) {
-            return; // Ya está desbloqueado en esta sesión
+            return Promise.resolve(true); // Ya está desbloqueado
         }
 
-        console.log("Intentando preparar AMBOS audios (silenciosamente)...");
+        console.log("Intentando preparar TODOS los audios (silenciosamente)...");
 
-        // 1. Prepara el audio de la ALARMA (silenciado)
+        // 2. Prepara el audio de la ALARMA (silenciado)
         alarmSoundForPriming.muted = true;
         const alarmPromise = alarmSoundForPriming.play();
 
-        // 2. Prepara el BUCLE SILENCIOSO (con volumen 0)
-        let loopPromise = Promise.resolve(); // Promesa vacía por si no existe
+        // 3. Prepara el BUCLE SILENCIOSO (con volumen 0)
+        let loopPromise = Promise.resolve();
         if (silentLoopSound) {
-            silentLoopSound.muted = false; // El audio ya es silencioso de por sí
-            silentLoopSound.volume = 0;    // Doble seguro
+            silentLoopSound.muted = false;
+            silentLoopSound.volume = 0;
             loopPromise = silentLoopSound.play();
         }
 
-        // 3. Esperar a que AMBOS se desbloqueen
-        Promise.all([alarmPromise, loopPromise])
-            .then(() => {
-                // ¡Éxito! Pausamos la alarma...
-                alarmSoundForPriming.pause();
-                alarmSoundForPriming.currentTime = 0;
-                alarmSoundForPriming.muted = false; // ¡Importante! Quitar mute
+        // 4. Prepara la SÍNTESIS DE VOZ (hablando en silencio)
+        const speechPromise = new Promise((resolve) => {
+            if (!window.speechSynthesis) {
+                return resolve(); // No soportado, no bloquear
+            }
+            // Habla una cadena corta (no vacía) para desbloquear el motor
+            const utterance = new SpeechSynthesisUtterance("init");
+            utterance.volume = 0;
+            utterance.onend = () => resolve();
+            utterance.onerror = (e) => {
+                // A veces falla la primera vez, pero aún así se desbloquea.
+                // No lo tratamos como un error fatal.
+                console.warn("Error 'silencioso' al preparar síntesis:", e);
+                resolve();
+            };
+            window.speechSynthesis.speak(utterance);
+        });
 
-                // ...PERO dejamos el bucle silencioso sonando (con volumen 0)
-                if (silentLoopSound) {
-                    silentLoopSound.volume = 0;
-                    console.log("¡Bucle silencioso iniciado! Permiso de audio mantenido.");
-                }
+        // 5. Esperar a que TODOS se desbloqueen
+        return new Promise((resolve) => {
+            Promise.all([alarmPromise, loopPromise, speechPromise])
+                .then(() => {
+                    // ¡Éxito! Pausamos la alarma...
+                    alarmSoundForPriming.pause();
+                    alarmSoundForPriming.currentTime = 0;
+                    alarmSoundForPriming.muted = false; // ¡Importante! Quitar mute
 
-                // Guardar en la sesión
-                sessionStorage.setItem('isAudioPrimed', 'true');
-                console.log("¡Audio preparado (desbloqueado)!");
+                    // ...PERO dejamos el bucle silencioso sonando (con volumen 0)
+                    if (silentLoopSound) {
+                        silentLoopSound.volume = 0;
+                        console.log("¡Bucle silencioso iniciado! Permiso de audio mantenido.");
+                    }
 
-                // Removemos los listeners
-                document.removeEventListener('click', primeAudioOnClick);
-                document.removeEventListener('touchstart', primeAudioOnClick);
+                    // ...y cancelamos cualquier habla de preparación
+                    window.speechSynthesis.cancel();
 
-            }).catch(error => {
-                // Si falla, lo intentará en el próximo clic
-                console.warn("Fallo al preparar el audio (esperando más interacción):", error.name);
+                    // Guardar en la sesión
+                    sessionStorage.setItem('isAudioPrimed', 'true');
+                    console.log("¡Todos los audios preparados (desbloqueados)!");
+                    resolve(true);
 
-                // Pausar ambos por si acaso
-                alarmSoundForPriming.pause();
-                alarmSoundForPriming.muted = false;
-                if (silentLoopSound) silentLoopSound.pause();
-            });
+                }).catch(error => {
+                    console.error("Fallo al preparar el audio:", error.name);
+
+                    // Pausar ambos por si acaso
+                    alarmSoundForPriming.pause();
+                    alarmSoundForPriming.muted = false;
+                    if (silentLoopSound) silentLoopSound.pause();
+                    window.speechSynthesis.cancel();
+
+                    resolve(false); // Resuelve como falso, pero no rechaza
+                });
+        });
     }
+    // --- ⬆️ FIN DE LA REESCRITURA (SECCIÓN 1) ⬆️ ---
 
-    // Adjuntamos el "primer" al primer clic o toque en CUALQUIER LUGAR
-    document.addEventListener('click', primeAudioOnClick);
-    document.addEventListener('touchstart', primeAudioOnClick);
-    // --- ⬆️ FIN DEL CAMBIO 2 ⬆️ ---
+
+    // --- ⬇️ INICIO DE LA MODIFICACIÓN (LÓGICA DE BIENVENIDA DE VOZ) ⬇️ ---
+
+    // Asignar el ícono de estado (definido en SECCIÓN 8)
+    voiceStatusIcon = document.getElementById('voice-status-icon');
+
+    if (document.getElementById('contenedor-recordatorios')) { // Asegurarnos de que estamos en index.html
+
+        inicializarVoz(); // Preparar el motor de reconocimiento (Esta función está en la SECCIÓN 8)
+
+        const preferenciaVoz = localStorage.getItem('voiceHelp');
+        const modalBienvenida = document.getElementById('voice-prompt-modal');
+
+        if (preferenciaVoz === 'true') {
+            // Ya dijo "Sí" antes. Activar la voz y preguntar.
+            if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
+
+            // Retraso de medio segundo para que la página cargue
+            setTimeout(() => {
+                narrar("Bienvenido de nuevo. ¿Qué quieres hacer?", () => {
+                    reiniciarEscucha(); // Inicia el bucle de escucha
+                });
+            }, 500);
+
+        } else if (preferenciaVoz === 'false') {
+            // Ya dijo "No" antes. No hacer nada.
+            if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
+
+            // --- ¡NUEVO! ---
+            // Si dijo "No", aún necesitamos un clic para desbloquear las ALARMAS.
+            // Adjuntamos un listener pasivo.
+            document.addEventListener('click', primeAllAudio, { once: true });
+            document.addEventListener('touchstart', primeAllAudio, { once: true });
+
+        } else {
+            // Es la PRIMERA VEZ (preferencia es null). Mostrar el modal.
+            if (modalBienvenida) modalBienvenida.classList.remove('hidden');
+
+            // --- REESCRITO ---
+            // Configurar los botones del modal
+            document.getElementById('btn-voice-activate').addEventListener('click', async () => {
+                modalBienvenida.classList.add('hidden');
+
+                // 1. Desbloquear TODO el audio
+                const audioDesbloqueado = await primeAllAudio();
+
+                if (audioDesbloqueado) {
+                    // 2. SOLO SI se desbloqueó, activar la voz
+                    activarAyudaVoz();
+                } else {
+                    // 3. Si falló, informar al usuario (visualmente por ahora)
+                    alert("No se pudo activar el audio. Por favor, revisa los permisos de tu navegador.");
+                    desactivarAyudaVoz(); // Guardar 'false' para no volver a preguntar
+                }
+            });
+
+            document.getElementById('btn-voice-deactivate').addEventListener('click', async () => {
+                modalBienvenida.classList.add('hidden');
+                // Aún intentamos desbloquear el audio (para la alarma)
+                await primeAllAudio();
+                desactivarAyudaVoz();
+            });
+            // --- FIN REESCRITO ---
+        }
+    }
+    // --- ⬆️ FIN DE LA MODIFICACIÓN (LÓGICA DE BIENVENIDA DE VOZ) ⬆️ ---
 
 
     // (¡NUEVO!) Revisar si hay una alarma pendiente al cargar la app
@@ -212,20 +298,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalBtnSave = document.getElementById('modal-btn-save');
-
         const modalBtnDiscard = document.getElementById('modal-btn-discard');
 
         // Elementos de Tema
 
         const themeSelector = document.getElementById('theme-selector');
         const lightBtn = document.getElementById('btn-theme-light');
-
         const darkBtn = document.getElementById('btn-theme-dark');
         const contrastBtn = document.getElementById('btn-theme-contrast');
-
         const themeButtons = [lightBtn, darkBtn, contrastBtn];
         const inactiveClasses = 'border-slate-700';
-
         const activeClasses = 'border-primary bg-primary/10';
 
         // Elementos de Fuente
@@ -237,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const inputFullName = document.getElementById('fullName');
         const inputEmail = document.getElementById('email');
-
         const headerName = document.getElementById('header-name');
         const headerEmail = document.getElementById('header-email');
 
@@ -255,7 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 fontSize: localStorage.getItem('fontSize') || '2',
                 name: localStorage.getItem('profileName') || 'Carlos Pérez',
                 email: localStorage.getItem('profileEmail') || 'carlos.perez@ejemplo.com',
-                volume: localStorage.getItem('profileVolume') || '75'
+                volume: localStorage.getItem('profileVolume') || '75',
+                // --- ⬇️ INICIO DE LA MODIFICACIÓN (VOZ) ⬇️ ---
+                voice: localStorage.getItem('voiceHelp') === 'true'
+                // --- ⬆️ FIN DE LA MODIFICACIÓN (VOZ) ⬆️ ---
             };
             // El estado actual empieza igual que el inicial
 
@@ -282,26 +366,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
             inputFullName.value = state.name;
             inputEmail.value = state.email;
-
             headerName.textContent = state.name;
             headerEmail.textContent = state.email;
 
             // Cargar Volumen
 
             volumeSlider.value = state.volume;
+
+            // --- ⬇️ INICIO DE LA MODIFICACIÓN (CONECTAR VOICE TOGGLE UI) ⬇️ ---
+            const voiceToggle = document.getElementById('voice-toggle');
+            if (voiceToggle) {
+                const voiceToggleSpan = voiceToggle.querySelector('span');
+                voiceToggle.setAttribute('aria-checked', state.voice);
+                if (state.voice) {
+                    voiceToggleSpan.classList.add('translate-x-6');
+                    voiceToggle.classList.add('bg-primary');
+                } else {
+                    voiceToggleSpan.classList.remove('translate-x-6');
+                    voiceToggle.classList.remove('bg-primary');
+                }
+            }
+            // --- ⬆️ FIN DE LA MODIFICACIÓN (CONECTAR VOICE TOGGLE UI) ⬆️ ---
         }
 
 
         function saveCurrentState() {
             localStorage.setItem('theme', currentState.theme);
-
             localStorage.setItem('fontSize', currentState.fontSize);
             localStorage.setItem('profileName', currentState.name);
-
             localStorage.setItem('profileEmail', currentState.email);
             localStorage.setItem('profileVolume', currentState.volume);
-            // Sincronizar initialState para que no vuelva a preguntar
 
+            // --- ⬇️ INICIO DE LA MODIFICACIÓN (VOZ) ⬇️ ---
+            localStorage.setItem('voiceHelp', currentState.voice);
+            // --- ⬆️ FIN DE LA MODIFICACIÓN (VOZ) ⬆️ ---
+
+            // Sincronizar initialState para que no vuelva a preguntar
             initialState = { ...currentState };
         }
 
@@ -342,20 +442,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Tema
         lightBtn.addEventListener('click', () => {
-
             document.documentElement.classList.remove('dark', 'high-contrast');
             currentState.theme = 'light';
             updateButtonState('light');
         });
         darkBtn.addEventListener('click', () => {
-
             document.documentElement.classList.remove('light', 'high-contrast');
             document.documentElement.classList.add('dark');
             currentState.theme = 'dark';
             updateButtonState('dark');
         });
         contrastBtn.addEventListener('click', () => {
-
             document.documentElement.classList.remove('light', 'dark');
             document.documentElement.classList.add('high-contrast');
             currentState.theme = 'high-contrast';
@@ -366,7 +463,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fontSizeSlider.addEventListener('input', () => {
             const newIndex = fontSizeSlider.value;
-
             currentState.fontSize = newIndex;
             document.documentElement.style.fontSize = sizeMap[newIndex];
         });
@@ -375,12 +471,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         inputFullName.addEventListener('input', () => {
             const newName = inputFullName.value;
-
             currentState.name = newName;
             headerName.textContent = newName;
         });
         inputEmail.addEventListener('input', () => {
-
             const newEmail = inputEmail.value;
             currentState.email = newEmail;
             headerEmail.textContent = newEmail;
@@ -392,6 +486,29 @@ document.addEventListener('DOMContentLoaded', () => {
             currentState.volume = volumeSlider.value;
         });
 
+
+        // --- ⬇️ INICIO DE LA MODIFICACIÓN (LISTENER VOICE TOGGLE) ⬇️ ---
+        const voiceToggle = document.getElementById('voice-toggle');
+        if (voiceToggle) {
+            voiceToggle.addEventListener('click', () => {
+                const newState = voiceToggle.getAttribute('aria-checked') === 'false';
+                currentState.voice = newState; // Actualizar el estado temporal
+
+                // Actualizar la UI
+                const voiceToggleSpan = voiceToggle.querySelector('span');
+                voiceToggle.setAttribute('aria-checked', newState);
+                if (newState) {
+                    voiceToggleSpan.classList.add('translate-x-6');
+                    voiceToggle.classList.add('bg-primary');
+                } else {
+                    voiceToggleSpan.classList.remove('translate-x-6');
+                    voiceToggle.classList.remove('bg-primary');
+                }
+            });
+        }
+        // --- ⬆️ FIN DE LA MODIFICACIÓN (LISTENER VOICE TOGGLE) ⬆️ ---
+
+
         // --- 5. Lógica de Salida (Modal) ---
 
 
@@ -399,26 +516,25 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault(); // ¡Detener la navegación!
 
             const hasChanges =
-
                 initialState.theme !== currentState.theme ||
                 initialState.fontSize !== currentState.fontSize ||
                 initialState.name !== currentState.name ||
                 initialState.email !== currentState.email ||
-                initialState.volume !== currentState.volume;
+                initialState.volume !== currentState.volume ||
+                // --- ⬇️ INICIO DE LA MODIFICACIÓN (VOZ) ⬇️ ---
+                initialState.voice !== currentState.voice;
+            // --- ⬆️ FIN DE LA MODIFICACIÓN (VOZ) ⬆️ ---
 
             if (hasChanges) {
-
                 // Si hay cambios, mostrar modal
                 modalBackdrop.classList.remove('hidden');
             } else {
-
                 // Si no hay cambios, navegar
                 window.location.href = btnBack.href;
             }
         });
 
         modalBtnSave.addEventListener('click', () => {
-
             saveCurrentState(); // Guardar
             modalBackdrop.classList.add('hidden');
             window.location.href = btnBack.href; // Navegar
@@ -443,7 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (timeButton && timeInput) {
         timeButton.addEventListener('click', () => {
-
             try { timeInput.showPicker(); } catch (error) { timeInput.focus(); }
         });
     }
@@ -737,10 +852,8 @@ if (botonAgregar) {
         }
 
         const nombreMed = document.getElementById('med-name').value;
-
         const dosisMed = document.getElementById('med-dose').value;
         const frecuenciaMed = document.getElementById('med-frequency').value;
-
         const fechaInicio = document.getElementById('med-date').value;
         const horaInicio = document.getElementById('med-time').value;
 
@@ -914,7 +1027,6 @@ function refrescarListaIndex() {
 
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
-
         mostrarRecordatoriosIndex(contenedorRecordatorios);
     }
 }
@@ -988,12 +1100,10 @@ function mostrarRecordatoriosIndex(contenedor) {
         contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-xl text-zinc-400">No tienes recordatorios programados.</p></div>`;
     } else {
         contenedor.innerHTML = htmlFinal;
-
     }
 }
 
 function crearTitulo(titulo) {
-
     return `<h2 class="text-3xl font-bold text-white pt-6">${titulo}</h2>`;
 }
 
@@ -1010,7 +1120,6 @@ function crearTarjetaRecordatorio(recordatorio) {
     const horaFormato = new Date(recordatorio.proximaDosis).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     const colorBarra = recordatorio.frecuencia === 1 ? 'bg-warning' : 'bg-primary';
-
     const colorIcono = recordatorio.frecuencia === 1 ? 'text-warning' : 'text-primary';
 
     // El div principal ahora es un 'flex' (fila) para que la barra esté fuera
@@ -1146,7 +1255,8 @@ function showAlarm(recordatorio) {
 /**
  * Oculta la pantalla de alarma y detiene el sonido
  */
-function hideSuggestions() {
+// --- ¡CORRECCIÓN DE ERROR! Renombrada de hideSuggestions a hideAlarm ---
+function hideAlarm() {
     if (!alarmModal) alarmModal = document.getElementById('alarm-modal');
     if (!alarmSound) alarmSound = document.getElementById('alarm-sound');
 
@@ -1225,7 +1335,8 @@ function initAlarmSlider() {
         // Comprobar si se deslizó lo suficiente (ej. 80% del camino)
         if (currentX > maxDragX * 0.8) {
             // ¡Deslizado! Ocultar alarma
-            hideSuggestions();
+            // --- ¡CORRECCIÓN DE ERROR! ---
+            hideAlarm(); // Llamar a la función con el nombre correcto
         } else {
             // No lo suficiente, regresar el thumb
             sliderThumb.style.transition = 'transform 0.3s ease';
@@ -1243,4 +1354,259 @@ function initAlarmSlider() {
     sliderThumb.addEventListener('touchstart', onDragStart, { passive: false });
     document.addEventListener('touchmove', onDragMove); // Escuchar en todo el documento
     document.addEventListener('touchend', onDragEnd);     // Escuchar en todo el documento
+}
+
+
+/**
+ * =======================================================
+ * SECCIÓN 8: (¡NUEVO!) GESTOR DE VOZ CONTINUA
+ * =======================================================
+ */
+
+// --- Variables Globales de Voz ---
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+let voiceStatusIcon; // Se asigna en DOMContentLoaded
+let autoRestart = true; // Flag para controlar el bucle de reinicio
+let isListening = false; // Flag para saber si el mic está activo
+
+/**
+ * Inicializa el reconocimiento de voz.
+ * Esta función PREPARA el motor, pero no lo enciende.
+ */
+function inicializarVoz() {
+    if (!SpeechRecognition) {
+        console.warn("Speech Recognition no está soportado en este navegador.");
+        if (voiceStatusIcon) voiceStatusIcon.style.display = 'none';
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = true; // Clave: Modo continuo
+    recognition.interimResults = false; // Solo nos importa el resultado final
+
+    // --- El Cerebro del Bucle Continuo ---
+
+    // Se llama cuando el micrófono detecta un resultado final
+    recognition.onresult = (event) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            }
+        }
+
+        const command = finalTranscript.toLowerCase().trim();
+        if (command) {
+            console.log("Comando final detectado:", command);
+            autoRestart = false; // ¡Detenemos el bucle para procesar!
+            procesarComando(command);
+        }
+    };
+
+    // Se llama cuando el micrófono se enciende
+    recognition.onstart = () => {
+        isListening = true;
+        if (voiceStatusIcon) voiceStatusIcon.querySelector('span').textContent = 'record_voice_over';
+    };
+
+    // Se llama cuando el micrófono se apaga
+    recognition.onend = () => {
+        isListening = false;
+        if (voiceStatusIcon) voiceStatusIcon.querySelector('span').textContent = 'mic';
+
+        if (autoRestart) {
+            // Si 'autoRestart' es true, es un reinicio normal del bucle
+            console.log("Micrófono se apagó, reiniciando automáticamente...");
+            try {
+                // Pequeña pausa para evitar errores de "start" demasiado rápido
+                setTimeout(() => {
+                    if (autoRestart) recognition.start();
+                }, 100);
+            } catch (e) {
+                console.error("Error en el bucle de reinicio:", e);
+            }
+        } else {
+            // Si 'autoRestart' es false, es porque lo detuvimos a propósito
+            // (generalmente para narrar algo)
+            console.log("Micrófono detenido manualmente (para narrar).");
+        }
+    };
+
+    // Se llama si hay un error
+    recognition.onerror = (event) => {
+        isListening = false;
+        if (voiceStatusIcon) voiceStatusIcon.querySelector('span').textContent = 'mic_off';
+
+        if (event.error === 'no-speech') {
+            // Esto es normal, simplemente no oyó nada y se reiniciará
+            console.warn("No se detectó habla, el bucle continuará.");
+        } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            console.error("Permiso de micrófono denegado.");
+            autoRestart = false; // Detener el bucle si no hay permiso
+        } else {
+            console.error("Error de reconocimiento:", event.error);
+        }
+    };
+}
+
+/**
+ * Función central para narrar.
+ * PAUSA la escucha, HABLA, y luego ejecuta un CALLBACK.
+ */
+function narrar(texto, onEndCallback) {
+    if (localStorage.getItem('voiceHelp') !== 'true') {
+        if (onEndCallback) onEndCallback(); // Ejecutar callback incluso si no se narra
+        return;
+    }
+
+    // --- GESTIÓN DEL MICRÓFONO (INICIO) ---
+    // 1. Apagamos el flag de reinicio para que 'onend' no reinicie el mic
+    autoRestart = false;
+
+    // 2. Si el micrófono está escuchando, lo detenemos activamente
+    if (isListening) {
+        recognition.stop();
+    }
+    // --- GESTIÓN DEL MICRÓFONO (FIN) ---
+
+    // 3. Narramos el texto
+    window.speechSynthesis.cancel(); // Detener narraciones anteriores
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = 'es-ES';
+    utterance.rate = 0.9;
+
+    // 4. Cuando la narración TERMINA, ejecutamos el callback
+    utterance.onend = () => {
+        if (onEndCallback) {
+            onEndCallback();
+        }
+    };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * Función de "Puerta de enlace".
+ * Le dice al gestor que reactive el bucle de escucha.
+ */
+function reiniciarEscucha() {
+    if (localStorage.getItem('voiceHelp') !== 'true' || !recognition) return;
+
+    console.log("Narración terminada, reiniciando bucle de escucha...");
+
+    // 1. Reactivamos el flag del bucle
+    autoRestart = true;
+
+    // 2. Si el micrófono no está ya encendido, lo encendemos
+    if (!isListening) {
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error("Error al reiniciar la escucha:", e);
+        }
+    }
+}
+
+/**
+ * Activa la ayuda por voz (llamado desde el modal).
+ * Inicia el bucle de escucha por primera vez.
+ */
+function activarAyudaVoz() {
+    localStorage.setItem('voiceHelp', 'true');
+    if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
+
+    narrar("Ayuda por voz activada. ¿Qué quieres hacer? Puedes decir 'agregar recordatorio', 'ir a ajustes' o 'escuchar mis recordatorios'.", () => {
+        // Cuando termine de hablar, inicia el bucle de escucha
+        reiniciarEscucha();
+    });
+}
+
+/**
+ * Desactiva la ayuda por voz.
+ */
+function desactivarAyudaVoz() {
+    localStorage.setItem('voiceHelp', 'false');
+    if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
+    detenerEscuchaGlobal();
+}
+
+/**
+ * Detiene el micrófono y el habla (llamado al salir de la página o desactivar).
+ */
+function detenerEscuchaGlobal() {
+    autoRestart = false; // Detiene el bucle
+    if (recognition && isListening) {
+        recognition.stop();
+    }
+    window.speechSynthesis.cancel(); // Detiene cualquier narración
+}
+
+/**
+ * Procesa el comando de voz detectado.
+ * Esta función se llama DESPUÉS de que el bucle se ha pausado.
+ */
+function procesarComando(command) {
+    if (command.includes('agregar')) {
+        // Comando de NAVEGACIÓN: Narra y luego se va (no reinicia la escucha)
+        narrar("Entendido. Abriendo la página para agregar.", () => {
+            window.location.href = 'agregar.html';
+        });
+
+    } else if (command.includes('ajustes') || command.includes('perfil')) {
+        // Comando de NAVEGACIÓN: Narra y luego se va (no reinicia la escucha)
+        narrar("Entendido. Abriendo tus ajustes.", () => {
+            window.location.href = 'perfil.html';
+        });
+
+    } else if (command.includes('escuchar') || command.includes('recordatorios')) {
+        // Comando LOCAL: Narra y luego reinicia la escucha
+        narrarRecordatorios(); // Esta función se encarga de llamar a reiniciarEscucha()
+
+    } else {
+        // Comando DESCONOCIDO: Narra y luego reinicia la escucha
+        narrar(`No te he entendido. Has dicho: ${command}. Intenta de nuevo.`, () => {
+            reiniciarEscucha(); // Cuando termine de hablar, vuelve a escuchar
+        });
+    }
+}
+
+/**
+ * Lee en voz alta los recordatorios de hoy.
+ * Al terminar, vuelve a preguntar y reinicia la escucha.
+ */
+function narrarRecordatorios() {
+    const recordatorios = JSON.parse(localStorage.getItem('recordatorios')) || [];
+    const noCompletados = recordatorios.filter(r => !r.completado);
+
+    const ahora = new Date();
+    const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0).getTime();
+    const finHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59).getTime();
+
+    const hoy = noCompletados.filter(r => r.proximaDosis >= inicioHoy && r.proximaDosis <= finHoy);
+    hoy.sort((a, b) => a.proximaDosis - b.proximaDosis);
+
+    let textoNarrar = "";
+    if (hoy.length === 0) {
+        textoNarrar = "No tienes recordatorios programados para hoy.";
+    } else if (hoy.length === 1) {
+        textoNarrar = "Tienes un recordatorio para hoy: ";
+    } else {
+        textoNarrar = `Tienes ${hoy.length} recordatorios para hoy. `;
+    }
+
+    hoy.forEach(r => {
+        const hora = new Date(r.proximaDosis).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+        textoNarrar += `${r.nombre}, ${r.dosis || ''}, a las ${hora}. `;
+    });
+
+    // Narra el texto y, al terminar, vuelve a preguntar qué hacer
+    narrar(textoNarrar, () => {
+        setTimeout(() => { // Pequeña pausa
+            narrar("¿Qué más quieres hacer?", () => {
+                reiniciarEscucha(); // Reinicia el bucle de escucha
+            });
+        }, 1000);
+    });
 }
