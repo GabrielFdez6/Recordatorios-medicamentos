@@ -1434,6 +1434,7 @@ function inicializarVoz() {
         }
     };
 
+    // --- ⬇️ INICIO DE LA CORRECCIÓN ⬇️ ---
     // Se llama si hay un error
     recognition.onerror = (event) => {
         isListening = false;
@@ -1442,13 +1443,25 @@ function inicializarVoz() {
         if (event.error === 'no-speech') {
             // Esto es normal, simplemente no oyó nada y se reiniciará
             console.warn("No se detectó habla, el bucle continuará.");
+            // autoRestart sigue 'true', así que 'onend' lo reiniciará
+
         } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            // Error fatal de permisos.
             console.error("Permiso de micrófono denegado.");
-            autoRestart = false; // Detener el bucle si no hay permiso
+            autoRestart = false; // ¡Detener el bucle!
+
+        } else if (event.error === 'network') {
+            // Error fatal de red.
+            console.error("Error de red. Pausando el reinicio. Revisa tu conexión.");
+            autoRestart = false; // ¡Detener el bucle!
+
         } else {
+            // Cualquier otro error.
             console.error("Error de reconocimiento:", event.error);
+            autoRestart = false; // ¡Detener el bucle por seguridad!
         }
     };
+    // --- ⬆️ FIN DE LA CORRECCIÓN ⬆️ ---
 }
 
 /**
