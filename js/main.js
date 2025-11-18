@@ -1,4 +1,4 @@
-// --- main.js (Versión REPARADA: UI Completa + Voz con Temporizador) ---
+// --- main.js (Versión FINAL: UI Completa + Corrección de Persistencia al Apagar) ---
 
 import { createSpeechRecognition, isSpeechRecognitionSupported } from './core/speechRecognitionFactory.js';
 import { RecognitionModeManager } from './core/recognitionModeManager.js';
@@ -13,7 +13,7 @@ let listeningMode;
 // Variables de Control de Flujo (Temporizadores)
 let inactivityTimer = null;
 let interactionState = 'NORMAL'; // Estados: 'NORMAL', 'CONFIRMATION'
-const TIMEOUT_DURATION = 15000; // 15 segundos (Ajustado según tu petición)
+const TIMEOUT_DURATION = 15000; // 15 segundos
 
 // Variables para control de errores de red
 let networkRetryCount = 0;
@@ -103,16 +103,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         voiceStatusIcon.querySelector('span').textContent = 'record_voice_over';
                     }
                     console.log("🎙️ Escuchando...");
-                    startInactivityTimer();
+
+                    // Solo iniciamos el timer si NO existe uno ya
+                    if (!inactivityTimer) {
+                        startInactivityTimer();
+                    } else {
+                        console.log("⏳ Timer continúa activo...");
+                    }
                 },
 
                 onExit: () => {
                     if (voiceStatusIcon) voiceStatusIcon.querySelector('span').textContent = 'mic_off';
-                    console.log("⏸️ Pausa.");
-                    clearInactivityTimer();
+                    console.log("⏸️ Pausa técnica.");
+                    // NO limpiamos el timer aquí
                 },
 
                 onResult: (event) => {
+                    // ¡Usuario habló! Limpiamos el timer inmediatamente.
                     clearInactivityTimer();
                     networkRetryCount = 0;
 
@@ -123,19 +130,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const command = finalTranscript.toLowerCase().trim();
                     if (command) {
-                        console.log("🗣️ Comando:", command);
+                        console.log("🗣️ Comando detectado:", command);
                         if (interactionState === 'CONFIRMATION') {
                             procesarConfirmacion(command);
                         } else {
                             procesarComando(command);
                         }
                     } else {
+                        // Si fue solo ruido, reiniciamos el reloj desde cero
                         startInactivityTimer();
                     }
                 },
 
                 onError: (event) => {
+                    // Si es silencio (no-speech), NO matamos el timer.
+                    if (event.error === 'no-speech') {
+                        console.log("🤫 Silencio detectado... el timer sigue corriendo.");
+                        return;
+                    }
+
+                    // Para otros errores reales, sí limpiamos
                     clearInactivityTimer();
+
                     if (event.error === 'network') {
                         networkRetryCount++;
                         console.warn(`⚠️ Error red (${networkRetryCount}/3).`);
@@ -205,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) { }
 
-    initAlarmSlider(); // ¡RESTAURADO!
+    initAlarmSlider();
 
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
@@ -217,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnBack = document.getElementById('btn-back');
-    if (btnBack) setupProfilePage(btnBack); // ¡RESTAURADO!
+    if (btnBack) setupProfilePage(btnBack);
 
     const timeBtn = document.getElementById('btn-time-picker');
     if (timeBtn) timeBtn.addEventListener('click', () => {
@@ -254,6 +270,7 @@ function clearInactivityTimer() {
 
 function handleInactivityTimeout() {
     console.log("⏰ ¡TIEMPO AGOTADO!");
+    inactivityTimer = null;
     modeManager.stop({ manual: true });
 
     if (interactionState === 'NORMAL') {
@@ -265,6 +282,11 @@ function handleInactivityTimeout() {
     } else if (interactionState === 'CONFIRMATION') {
         console.log("💤 Sin respuesta a confirmación. Apagando.");
         interactionState = 'NORMAL';
+
+        // --- AQUÍ ESTÁ LA CORRECCIÓN ---
+        // Guardamos 'false' en localStorage para que no reviva al recargar
+        localStorage.setItem('voiceHelp', 'false');
+
         speechService.speak("Desactivando narrador.", () => {
             if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
         });
@@ -272,7 +294,11 @@ function handleInactivityTimeout() {
 }
 
 function procesarConfirmacion(command) {
-    if (command.match(/\b(sí|si|claro|aquí|estoy|hola)\b/i)) {
+    const cleanCommand = command.replace(/[.,!¡¿?]/g, '').trim();
+    const respuestasPositivas = ['sí', 'si', 'claro', 'aquí', 'aqui', 'estoy', 'hola', 'sigo', 'yep', 'yes'];
+    const esPositivo = respuestasPositivas.some(palabra => cleanCommand.includes(palabra));
+
+    if (esPositivo) {
         console.log("✅ Confirmación recibida.");
         interactionState = 'NORMAL';
         modeManager.stop({ manual: true });
@@ -282,6 +308,10 @@ function procesarConfirmacion(command) {
         });
     } else {
         console.log("❌ Respuesta negativa o desconocida.");
+
+        // --- TAMBIÉN AQUÍ ---
+        localStorage.setItem('voiceHelp', 'false');
+
         modeManager.stop({ manual: true });
         speechService.speak("Entendido, hasta luego.", () => {
             if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
@@ -337,7 +367,7 @@ function obtenerTextoRecordatorios() {
     return texto;
 }
 
-// --- HELPERS ---
+// --- HELPERS UI ---
 const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) setupAgregarPage();
 
@@ -346,8 +376,32 @@ function setupAgregarPage() {
     const medSuggestionsBox = document.getElementById('med-suggestions');
     const medNameContainer = medNameInput.parentElement;
     const medNameButton = medNameContainer.querySelector('button');
-    const MEDICAMENTOS_COMUNES = ['Aciclovir', 'Ácido acetilsalicílico', 'Amoxicilina', 'Atorvastatina', 'Azitromicina', 'Betametasona', 'Captopril', 'Cefalexina', 'Ciprofloxacino', 'Clonazepam', 'Diclofenaco', 'Enalapril', 'Glibenclamida', 'Ibuprofeno', 'Insulina', 'Ketorolaco', 'Loratadina', 'Losartán', 'Metformina', 'Omeprazol', 'Paracetamol', 'Ranitidina', 'Salbutamol', 'Sertralina', 'Tramadol'];
-
+    const MEDICAMENTOS_COMUNES = [
+        'Aciclovir', 'Ácido acetilsalicílico', 'Ácido clavulánico', 'Ácido fusídico', 'Ácido valproico',
+        'Albendazol', 'Alprazolam', 'Amitriptilina', 'Amlodipino', 'Amoxicilina', 'Ampicilina', 'Aripiprazol',
+        'Aspirina', 'Atenolol', 'Atorvastatina', 'Azatioprina', 'Azitromicina', 'Betametasona', 'Bupropión',
+        'Buspirona', 'Captopril', 'Carbamazepina', 'Cefalexina', 'Ceftriaxona', 'Celecoxib', 'Cetirizina',
+        'Ciclosporina', 'Ciprofloxacino', 'Ciprofloxacino oftálmico', 'Cisplatino', 'Citalopram', 'Claritromicina',
+        'Clindamicina', 'Clonazepam', 'Clopidogrel', 'Clorfenamina', 'Clotrimazol', 'Clozapina', 'Codeína',
+        'Desloratadina', 'Dexametasona', 'Diazepam', 'Diclofenaco', 'Difenhidramina', 'Digoxina', 'Domperidona',
+        'Donepezilo', 'Doxorrubicina', 'Doxiciclina', 'Duloxetina', 'Dutasterida', 'Empagliflozina', 'Enalapril',
+        'Eritromicina', 'Escitalopram', 'Esomeprazol', 'Espironolactona', 'Estradiol', 'Etoricoxib', 'Famotidina',
+        'Fenitoína', 'Fexofenadina', 'Finasterida', 'Fluconazol', 'Fluoxetina', 'Furosemida', 'Gabapentina',
+        'Gentamicina', 'Glibenclamida', 'Haloperidol', 'Heparina', 'Hidroclorotiazida', 'Hidrocodona',
+        'Hidrocortisona', 'Hidroxicina', 'Ibuprofeno', 'Indometacina', 'Insulina', 'Isoniazida', 'Itraconazol',
+        'Ivermectina', 'Ketoconazol', 'Ketorolaco', 'Lamivudina', 'Lamotrigina', 'Lansoprazol', 'Latanoprost',
+        'Levetiracetam', 'Levocetirizina', 'Levofloxacino', 'Levotiroxina', 'Loperamida', 'Lorazepam',
+        'Loratadina', 'Losartán', 'Mebendazol', 'Meloxicam', 'Metamizol', 'Metformina', 'Metilprednisolona',
+        'Metoclopramida', 'Metoprolol', 'Metotrexato', 'Metronidazol', 'Miconazol', 'Midazolam', 'Mirtazapina',
+        'Morfina', 'Naproxeno', 'Neomicina', 'Nifedipino', 'Nistatina', 'Nitazoxanida', 'Olanzapina', 'Omeprazol',
+        'Ondansetrón', 'Oseltamivir', 'Oxicodona', 'Pantoprazol', 'Paracetamol', 'Paroxetina', 'Penicilina G / V',
+        'Permetrina', 'Pioglitazona', 'Piroxicam', 'Praziquantel', 'Prednisona', 'Pregabalina', 'Propranolol',
+        'Quetiapina', 'Ramipril', 'Ranitidina', 'Remdesivir', 'Rifampicina', 'Risperidona', 'Rosuvastatina',
+        'Salbutamol', 'Sales de rehidratación oral', 'Sertralina', 'Sildenafil', 'Simvastatina', 'Sitagliptina',
+        'Sucralfato', 'Sulindaco', 'Tacrolimus', 'Tadalafilo', 'Tamoxifeno', 'Tamsulosina', 'Tenofovir',
+        'Testosterona', 'Timolol', 'Tobramicina', 'Tramadol', 'Valaciclovir', 'Vancomicina', 'Venlafaxina',
+        'Warfarina', 'Zanamivir', 'Zidovudina', 'Zolpidem'
+    ];
     function showSuggestions() { medNameContainer.classList.remove('rounded-xl'); medNameContainer.classList.add('rounded-t-xl'); medNameInput.classList.remove('rounded-l-xl'); medNameInput.classList.add('rounded-tl-xl'); medNameButton.classList.remove('rounded-r-xl'); medNameButton.classList.add('rounded-tr-xl'); medSuggestionsBox.classList.remove('hidden'); }
     function hideSuggestions() { medNameContainer.classList.remove('rounded-t-xl'); medNameContainer.classList.add('rounded-xl'); medNameInput.classList.remove('rounded-tl-xl'); medNameInput.classList.add('rounded-l-xl'); medNameButton.classList.remove('rounded-tr-xl'); medNameButton.classList.add('rounded-r-xl'); medSuggestionsBox.classList.add('hidden'); }
 
@@ -377,11 +431,10 @@ function setupAgregarPage() {
 }
 
 // =======================================================
-// LÓGICA DE PERFIL (RESTAURADA)
+// LÓGICA DE PERFIL (RESTAURADA Y COMPLETA)
 // =======================================================
 function setupProfilePage(btnBack) {
-    let initialState = {};
-    let currentState = {};
+    let initialState = {}; let currentState = {};
 
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalBtnSave = document.getElementById('modal-btn-save');
