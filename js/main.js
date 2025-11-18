@@ -1,14 +1,16 @@
-// --- main.js (Versión FINAL: UI Completa + Corrección de Persistencia al Apagar) ---
+// --- main.js (Versión FINAL: Completa con Edición, Voz Natural y UI Mejorada) ---
 
 import { createSpeechRecognition, isSpeechRecognitionSupported } from './core/speechRecognitionFactory.js';
 import { RecognitionModeManager } from './core/recognitionModeManager.js';
 import { SpeechSynthesisService } from './core/speechSynthesisService.js';
+import { MedicationFormAssistant } from './core/medicationFormAssistant.js';
 
 // Variables globales
 let modeManager;
 let speechService;
 let voiceStatusIcon;
 let listeningMode;
+let formAssistant = null;
 
 // Variables de Control de Flujo (Temporizadores)
 let inactivityTimer = null;
@@ -115,11 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 onExit: () => {
                     if (voiceStatusIcon) voiceStatusIcon.querySelector('span').textContent = 'mic_off';
                     console.log("⏸️ Pausa técnica.");
-                    // NO limpiamos el timer aquí
                 },
 
                 onResult: (event) => {
-                    // ¡Usuario habló! Limpiamos el timer inmediatamente.
                     clearInactivityTimer();
                     networkRetryCount = 0;
 
@@ -137,19 +137,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             procesarComando(command);
                         }
                     } else {
-                        // Si fue solo ruido, reiniciamos el reloj desde cero
                         startInactivityTimer();
                     }
                 },
 
                 onError: (event) => {
-                    // Si es silencio (no-speech), NO matamos el timer.
                     if (event.error === 'no-speech') {
                         console.log("🤫 Silencio detectado... el timer sigue corriendo.");
                         return;
                     }
 
-                    // Para otros errores reales, sí limpiamos
                     clearInactivityTimer();
 
                     if (event.error === 'network') {
@@ -174,7 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- Lógica de Bienvenida ---
             const preferenciaVoz = localStorage.getItem('voiceHelp');
             const modalBienvenida = document.getElementById('voice-prompt-modal');
-            const textoBienvenida = "Bienvenido. Puede decir 'ajustes' para abrir los ajustes, o 'agregar recordatorio'.";
+
+            // Texto de bienvenida simplificado
+            const textoBienvenida = "Bienvenido. Puedes decir: 'ajustes', 'agregar recordatorio' o 'escuchar recordatorios'.";
 
             if (preferenciaVoz === 'true') {
                 if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
@@ -226,9 +225,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
         mostrarRecordatoriosIndex(contenedorRecordatorios);
+
+        // --- LISTENER MEJORADO: Incluye botón borrar y botón EDITAR ---
         contenedorRecordatorios.addEventListener('click', (e) => {
             const btnDel = e.target.closest('.btn-borrar-menu');
+            const btnEdit = e.target.closest('.btn-editar-menu');
+
             if (btnDel) { e.preventDefault(); borrarRecordatorio(btnDel.dataset.id); }
+            if (btnEdit) { e.preventDefault(); editarRecordatorio(btnEdit.dataset.id); }
         });
     }
 
@@ -282,20 +286,27 @@ function handleInactivityTimeout() {
     } else if (interactionState === 'CONFIRMATION') {
         console.log("💤 Sin respuesta a confirmación. Apagando.");
         interactionState = 'NORMAL';
-
-        // --- AQUÍ ESTÁ LA CORRECCIÓN ---
-        // Guardamos 'false' en localStorage para que no reviva al recargar
         localStorage.setItem('voiceHelp', 'false');
-
         speechService.speak("Desactivando narrador.", () => {
             if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
         });
     }
 }
 
+// =======================================================
+// SECCIÓN: LÓGICA DE CONFIRMACIÓN (REFINADA)
+// =======================================================
+
 function procesarConfirmacion(command) {
-    const cleanCommand = command.replace(/[.,!¡¿?]/g, '').trim();
-    const respuestasPositivas = ['sí', 'si', 'claro', 'aquí', 'aqui', 'estoy', 'hola', 'sigo', 'yep', 'yes'];
+    const cleanCommand = command.toLowerCase().replace(/[.,!¡¿?]/g, '').trim();
+
+    // Lista ampliada de respuestas naturales para confirmar presencia
+    const respuestasPositivas = [
+        'sí', 'si', 'claro', 'aquí', 'aqui', 'estoy', 'hola', 'sigo',
+        'yep', 'yes', 'correcto', 'afirmativo', 'vale', 'ok', 'escucho',
+        'presente', 'simón', 'obvio', 'por supuesto', 'todavía', 'aún', 'dime'
+    ];
+
     const esPositivo = respuestasPositivas.some(palabra => cleanCommand.includes(palabra));
 
     if (esPositivo) {
@@ -303,15 +314,12 @@ function procesarConfirmacion(command) {
         interactionState = 'NORMAL';
         modeManager.stop({ manual: true });
 
-        speechService.speak("Entendido. Puede decir 'ajustes' para abrir los ajustes, o 'agregar recordatorio'.", () => {
+        speechService.speak("Entendido. Te escucho.", () => {
             modeManager.start(listeningMode);
         });
     } else {
         console.log("❌ Respuesta negativa o desconocida.");
-
-        // --- TAMBIÉN AQUÍ ---
         localStorage.setItem('voiceHelp', 'false');
-
         modeManager.stop({ manual: true });
         speechService.speak("Entendido, hasta luego.", () => {
             if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
@@ -321,30 +329,62 @@ function procesarConfirmacion(command) {
 
 
 // =======================================================
-// SECCIÓN: PROCESAMIENTO DE COMANDOS
+// SECCIÓN: PROCESAMIENTO DE COMANDOS (VOCABULARIO NATURAL)
 // =======================================================
 
 function procesarComando(command) {
     if (!modeManager || !speechService) return;
     interactionState = 'NORMAL';
 
-    if (command.includes('agregar')) {
+    // Convertimos a minúsculas para asegurar coincidencias
+    const cmd = command.toLowerCase();
+
+    // --- DICCIONARIOS DE SINÓNIMOS ---
+
+    // Acción: Ir a Agregar
+    const triggersAgregar = [
+        'agregar', 'añadir', 'nuevo', 'crear', 'poner',
+        'registrar', 'sumar', 'meter', 'inscribir'
+    ];
+
+    // Acción: Ir a Ajustes/Perfil
+    const triggersAjustes = [
+        'ajustes', 'perfil', 'configuración', 'opciones',
+        'cuenta', 'preferencias', 'configurar', 'usuario', 'datos'
+    ];
+
+    // Acción: Leer Recordatorios
+    const triggersEscuchar = [
+        'escuchar', 'recordatorios', 'leer', 'dime', 'cuáles', 'cuales',
+        'tengo', 'hay', 'lista', 'revisar', 'pendientes', 'agenda', 'qué toca'
+    ];
+
+    // Función auxiliar para verificar si el comando contiene alguna palabra clave
+    const matches = (triggers) => triggers.some(t => cmd.includes(t));
+
+    // --- LÓGICA DE DERIVACIÓN ---
+
+    if (matches(triggersAgregar)) {
         modeManager.stop({ manual: true });
-        speechService.speak("Abriendo agregar.", () => window.location.href = 'agregar.html');
-    } else if (command.includes('ajustes') || command.includes('perfil')) {
+        speechService.speak("Abriendo pantalla para añadir.", () => window.location.href = 'agregar.html');
+
+    } else if (matches(triggersAjustes)) {
         modeManager.stop({ manual: true });
-        speechService.speak("Abriendo ajustes.", () => window.location.href = 'perfil.html');
-    } else if (command.includes('escuchar') || command.includes('recordatorios')) {
+        speechService.speak("Abriendo tus ajustes.", () => window.location.href = 'perfil.html');
+
+    } else if (matches(triggersEscuchar)) {
         modeManager.stop({ manual: true });
         const texto = obtenerTextoRecordatorios();
         speechService.speak(texto, () => {
-            speechService.speak("¿Algo más?", () => {
+            speechService.speak("¿Deseas algo más?", () => {
                 modeManager.start(listeningMode);
             });
         });
+
     } else {
+        // No se reconoció ninguna intención clara
         modeManager.stop({ manual: true });
-        speechService.speak("No entendí. Intenta de nuevo.", () => {
+        speechService.speak("No te entendí bien. ¿Puedes repetir?", () => {
             modeManager.start(listeningMode);
         });
     }
@@ -376,6 +416,36 @@ function setupAgregarPage() {
     const medSuggestionsBox = document.getElementById('med-suggestions');
     const medNameContainer = medNameInput.parentElement;
     const medNameButton = medNameContainer.querySelector('button');
+    const botonAgregar = document.getElementById('btn-agregar'); // Aseguramos referencia
+
+    // --- Lógica de Edición (NUEVO) ---
+    const editData = JSON.parse(localStorage.getItem('tempEditMed'));
+    if (editData) {
+        // 1. Rellenar campos
+        document.getElementById('med-name').value = editData.nombre;
+        document.getElementById('med-dose').value = editData.dosis || '';
+        document.getElementById('med-frequency').value = editData.frecuencia;
+
+        // 2. Calcular fecha y hora desde el timestamp guardado
+        const nextDate = new Date(editData.proximaDosis);
+
+        // Formato YYYY-MM-DD para el input date
+        const yyyy = nextDate.getFullYear();
+        const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(nextDate.getDate()).padStart(2, '0');
+        document.getElementById('med-date').value = `${yyyy}-${mm}-${dd}`;
+
+        // Formato HH:MM para el input time
+        const hh = String(nextDate.getHours()).padStart(2, '0');
+        const min = String(nextDate.getMinutes()).padStart(2, '0');
+        document.getElementById('med-time').value = `${hh}:${min}`;
+
+        // 3. Cambiar texto del botón
+        const btnSpan = botonAgregar.querySelector('span');
+        if (btnSpan) btnSpan.textContent = 'Guardar Cambios';
+    }
+    // -------------------------------
+
     const MEDICAMENTOS_COMUNES = [
         'Aciclovir', 'Ácido acetilsalicílico', 'Ácido clavulánico', 'Ácido fusídico', 'Ácido valproico',
         'Albendazol', 'Alprazolam', 'Amitriptilina', 'Amlodipino', 'Amoxicilina', 'Ampicilina', 'Aripiprazol',
@@ -402,6 +472,7 @@ function setupAgregarPage() {
         'Testosterona', 'Timolol', 'Tobramicina', 'Tramadol', 'Valaciclovir', 'Vancomicina', 'Venlafaxina',
         'Warfarina', 'Zanamivir', 'Zidovudina', 'Zolpidem'
     ];
+
     function showSuggestions() { medNameContainer.classList.remove('rounded-xl'); medNameContainer.classList.add('rounded-t-xl'); medNameInput.classList.remove('rounded-l-xl'); medNameInput.classList.add('rounded-tl-xl'); medNameButton.classList.remove('rounded-r-xl'); medNameButton.classList.add('rounded-tr-xl'); medSuggestionsBox.classList.remove('hidden'); }
     function hideSuggestions() { medNameContainer.classList.remove('rounded-t-xl'); medNameContainer.classList.add('rounded-xl'); medNameInput.classList.remove('rounded-tl-xl'); medNameInput.classList.add('rounded-l-xl'); medNameButton.classList.remove('rounded-tr-xl'); medNameButton.classList.add('rounded-r-xl'); medSuggestionsBox.classList.add('hidden'); }
 
@@ -416,45 +487,83 @@ function setupAgregarPage() {
         });
         showSuggestions();
     });
+
     medSuggestionsBox.addEventListener('click', (event) => { const clicked = event.target.closest('[data-name]'); if (clicked) { medNameInput.value = clicked.dataset.name; medSuggestionsBox.innerHTML = ''; hideSuggestions(); medNameInput.focus(); } });
     medNameInput.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
+
+    // --- Lógica de Guardado (MODIFICADA) ---
     botonAgregar.addEventListener('click', async () => {
-        const nombre = document.getElementById('med-name').value; const frecuencia = document.getElementById('med-frequency').value; const fecha = document.getElementById('med-date').value; const hora = document.getElementById('med-time').value;
+        const nombre = document.getElementById('med-name').value;
+        const frecuencia = document.getElementById('med-frequency').value;
+        const fecha = document.getElementById('med-date').value;
+        const hora = document.getElementById('med-time').value;
+        const dosis = document.getElementById('med-dose').value;
+
         if (!nombre || !fecha || !hora) { alert("Faltan datos"); return; }
+
         let records = JSON.parse(localStorage.getItem('recordatorios')) || [];
-        const partesFecha = fecha.split('-').map(Number); const partesHora = hora.split(':').map(Number);
-        const fechaObj = new Date(); fechaObj.setFullYear(partesFecha[0], partesFecha[1] - 1, partesFecha[2]); fechaObj.setHours(partesHora[0], partesHora[1], 0, 0);
-        let prox = fechaObj.getTime(); if (prox <= Date.now()) prox += (parseInt(frecuencia) * 60000);
-        records.push({ id: Date.now(), nombre: nombre, dosis: document.getElementById('med-dose').value, frecuencia: parseInt(frecuencia), proximaDosis: prox, completado: false });
-        localStorage.setItem('recordatorios', JSON.stringify(records)); window.location.href = "index.html";
+
+        // Calcular próxima dosis
+        const partesFecha = fecha.split('-').map(Number);
+        const partesHora = hora.split(':').map(Number);
+        const fechaObj = new Date();
+        fechaObj.setFullYear(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
+        fechaObj.setHours(partesHora[0], partesHora[1], 0, 0);
+
+        let prox = fechaObj.getTime();
+        // Si la fecha elegida ya pasó, calculamos la siguiente automáticamente
+        if (prox <= Date.now()) prox += (parseInt(frecuencia) * 60000);
+
+        if (editData) {
+            // MODO EDICIÓN: Buscamos y actualizamos
+            const index = records.findIndex(r => r.id === editData.id);
+            if (index !== -1) {
+                records[index] = {
+                    ...records[index],
+                    nombre: nombre,
+                    dosis: dosis,
+                    frecuencia: parseInt(frecuencia),
+                    proximaDosis: prox,
+                    completado: false // Reseteamos el estado al editar
+                };
+            }
+            localStorage.removeItem('tempEditMed'); // Limpiamos
+        } else {
+            // MODO CREACIÓN
+            records.push({
+                id: Date.now(),
+                nombre: nombre,
+                dosis: dosis,
+                frecuencia: parseInt(frecuencia),
+                proximaDosis: prox,
+                completado: false
+            });
+        }
+
+        localStorage.setItem('recordatorios', JSON.stringify(records));
+        window.location.href = "index.html";
     });
 }
 
 // =======================================================
-// LÓGICA DE PERFIL (RESTAURADA Y COMPLETA)
+// LÓGICA DE PERFIL
 // =======================================================
 function setupProfilePage(btnBack) {
     let initialState = {}; let currentState = {};
-
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalBtnSave = document.getElementById('modal-btn-save');
     const modalBtnDiscard = document.getElementById('modal-btn-discard');
-
-    // Botones de Tema
     const lightBtn = document.getElementById('btn-theme-light');
     const darkBtn = document.getElementById('btn-theme-dark');
     const contrastBtn = document.getElementById('btn-theme-contrast');
     const themeButtons = [lightBtn, darkBtn, contrastBtn];
     const inactiveClasses = 'border-slate-700';
     const activeClasses = 'border-primary bg-primary/10';
-
-    // Elementos de Datos
     const fontSizeSlider = document.getElementById('fontSize');
     const sizeMap = ['85%', '92.5%', '100%', '107.5%', '115%'];
     const inputFullName = document.getElementById('fullName');
-    const inputEmail = document.getElementById('email');
+    // Correo eliminado de aquí, pero mantenemos el resto
     const headerName = document.getElementById('header-name');
-    const headerEmail = document.getElementById('header-email');
     const volumeSlider = document.getElementById('volumeSlider');
     const voiceToggle = document.getElementById('voice-toggle');
 
@@ -463,7 +572,6 @@ function setupProfilePage(btnBack) {
             theme: localStorage.getItem('theme') || 'dark',
             fontSize: localStorage.getItem('fontSize') || '2',
             name: localStorage.getItem('profileName') || 'Carlos Pérez',
-            email: localStorage.getItem('profileEmail') || 'carlos.perez@ejemplo.com',
             volume: localStorage.getItem('profileVolume') || '75',
             voice: localStorage.getItem('voiceHelp') === 'true'
         };
@@ -471,33 +579,19 @@ function setupProfilePage(btnBack) {
     }
 
     function loadUiFromState(state) {
-        // Tema
         document.documentElement.classList.remove('dark', 'light', 'high-contrast');
         if (state.theme !== 'light') document.documentElement.classList.add(state.theme);
         updateButtonState(state.theme);
-
-        // Fuente
         document.documentElement.style.fontSize = sizeMap[state.fontSize];
         if (fontSizeSlider) fontSizeSlider.value = state.fontSize;
-
-        // Datos
         if (inputFullName) inputFullName.value = state.name;
-        if (inputEmail) inputEmail.value = state.email;
         if (headerName) headerName.textContent = state.name;
-        if (headerEmail) headerEmail.textContent = state.email;
         if (volumeSlider) volumeSlider.value = state.volume;
-
-        // Toggle Voz
         if (voiceToggle) {
             const voiceToggleSpan = voiceToggle.querySelector('span');
             voiceToggle.setAttribute('aria-checked', state.voice);
-            if (state.voice) {
-                voiceToggleSpan.classList.add('translate-x-6');
-                voiceToggle.classList.add('bg-primary');
-            } else {
-                voiceToggleSpan.classList.remove('translate-x-6');
-                voiceToggle.classList.remove('bg-primary');
-            }
+            if (state.voice) { voiceToggleSpan.classList.add('translate-x-6'); voiceToggle.classList.add('bg-primary'); }
+            else { voiceToggleSpan.classList.remove('translate-x-6'); voiceToggle.classList.remove('bg-primary'); }
         }
     }
 
@@ -505,7 +599,6 @@ function setupProfilePage(btnBack) {
         localStorage.setItem('theme', currentState.theme);
         localStorage.setItem('fontSize', currentState.fontSize);
         localStorage.setItem('profileName', currentState.name);
-        localStorage.setItem('profileEmail', currentState.email);
         localStorage.setItem('profileVolume', currentState.volume);
         localStorage.setItem('voiceHelp', currentState.voice);
         initialState = { ...currentState };
@@ -514,51 +607,31 @@ function setupProfilePage(btnBack) {
     function updateButtonState(currentTheme) {
         if (!lightBtn) return;
         const activeClassesArray = activeClasses.split(' ');
-        themeButtons.forEach(btn => {
-            btn.classList.remove(...activeClassesArray);
-            btn.classList.add(inactiveClasses);
-        });
+        themeButtons.forEach(btn => { btn.classList.remove(...activeClassesArray); btn.classList.add(inactiveClasses); });
         if (currentTheme === 'light') { lightBtn.classList.add(...activeClassesArray); lightBtn.classList.remove(inactiveClasses); }
         else if (currentTheme === 'dark') { darkBtn.classList.add(...activeClassesArray); darkBtn.classList.remove(inactiveClasses); }
         else if (currentTheme === 'high-contrast') { contrastBtn.classList.add(...activeClassesArray); contrastBtn.classList.remove(inactiveClasses); }
     }
 
-    // Inicializar
-    loadInitialState();
-    loadUiFromState(initialState);
+    loadInitialState(); loadUiFromState(initialState);
 
-    // Listeners
     if (lightBtn) lightBtn.addEventListener('click', () => { currentState.theme = 'light'; loadUiFromState(currentState); });
     if (darkBtn) darkBtn.addEventListener('click', () => { currentState.theme = 'dark'; loadUiFromState(currentState); });
     if (contrastBtn) contrastBtn.addEventListener('click', () => { currentState.theme = 'high-contrast'; loadUiFromState(currentState); });
     if (fontSizeSlider) fontSizeSlider.addEventListener('input', () => { currentState.fontSize = fontSizeSlider.value; document.documentElement.style.fontSize = sizeMap[fontSizeSlider.value]; });
     if (inputFullName) inputFullName.addEventListener('input', () => { currentState.name = inputFullName.value; headerName.textContent = inputFullName.value; });
-    if (inputEmail) inputEmail.addEventListener('input', () => { currentState.email = inputEmail.value; headerEmail.textContent = inputEmail.value; });
     if (volumeSlider) volumeSlider.addEventListener('input', () => { currentState.volume = volumeSlider.value; });
     if (voiceToggle) voiceToggle.addEventListener('click', () => { currentState.voice = !currentState.voice; loadUiFromState(currentState); });
 
     btnBack.addEventListener('click', (event) => {
-        const hasChanges =
-            initialState.theme !== currentState.theme ||
-            initialState.fontSize !== currentState.fontSize ||
-            initialState.name !== currentState.name ||
-            initialState.email !== currentState.email ||
-            initialState.volume !== currentState.volume ||
-            initialState.voice !== currentState.voice;
-
-        if (hasChanges) {
-            event.preventDefault();
-            modalBackdrop.classList.remove('hidden');
-        }
+        const hasChanges = initialState.theme !== currentState.theme || initialState.fontSize !== currentState.fontSize || initialState.name !== currentState.name || initialState.volume !== currentState.volume || initialState.voice !== currentState.voice;
+        if (hasChanges) { event.preventDefault(); modalBackdrop.classList.remove('hidden'); }
     });
 
     if (modalBtnSave) modalBtnSave.addEventListener('click', () => { saveCurrentState(); modalBackdrop.classList.add('hidden'); window.location.href = btnBack.href; });
     if (modalBtnDiscard) modalBtnDiscard.addEventListener('click', () => { loadUiFromState(initialState); currentState = { ...initialState }; modalBackdrop.classList.add('hidden'); });
 }
 
-// =======================================================
-// LÓGICA DE ALARMA Y RENDERIZADO (RESTAURADA)
-// =======================================================
 function revisarRecordatorios() {
     const ahora = Date.now(); const alarmModal = document.getElementById('alarm-modal'); if (!alarmModal || !alarmModal.classList.contains('hidden')) return;
     let records = JSON.parse(localStorage.getItem('recordatorios')) || []; let changed = false;
@@ -575,30 +648,132 @@ function revisarRecordatorios() {
 setInterval(() => { revisarRecordatorios(); const cont = document.getElementById('contenedor-recordatorios'); if (cont) mostrarRecordatoriosIndex(cont); }, 1000);
 
 function mostrarRecordatoriosIndex(contenedor) {
-    const records = JSON.parse(localStorage.getItem('recordatorios')) || []; contenedor.innerHTML = '';
+    const records = JSON.parse(localStorage.getItem('recordatorios')) || [];
+    contenedor.innerHTML = '';
+
     const active = records.filter(r => !r.completado);
-    if (active.length === 0) { contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-xl text-zinc-400">No tienes recordatorios.</p></div>`; return; }
+
+    if (active.length === 0) {
+        contenedor.innerHTML = `<div class="rounded-xl bg-card-dark p-5 text-center"><p class="text-xl text-zinc-400">No tienes recordatorios.</p></div>`;
+        return;
+    }
+
+    // 1. Ordenamos por fecha para que salgan en orden cronológico
     active.sort((a, b) => a.proximaDosis - b.proximaDosis);
-    let html = `<h2 class="text-3xl font-bold text-white pt-6">Próximos</h2>`;
-    active.forEach(r => html += crearTarjetaRecordatorio(r)); contenedor.innerHTML = html;
+
+    // 2. Definimos los límites de tiempo (00:00 horas de cada día)
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const tomorrowStart = todayStart + (24 * 60 * 60 * 1000); // +1 día
+    const dayAfterStart = tomorrowStart + (24 * 60 * 60 * 1000); // +2 días
+    const futureStart = dayAfterStart + (24 * 60 * 60 * 1000);   // +3 días
+
+    let html = '';
+    let currentGroup = null; // Para controlar cuándo cambia el día y poner título
+
+    active.forEach(r => {
+        let group = '';
+
+        // Lógica para determinar el título según la fecha
+        if (r.proximaDosis < tomorrowStart) {
+            group = 'Hoy'; // Incluye también los atrasados no completados
+        } else if (r.proximaDosis < dayAfterStart) {
+            group = 'Mañana';
+        } else if (r.proximaDosis < futureStart) {
+            group = 'Pasado Mañana';
+        } else {
+            group = 'Más adelante'; // O "Próximos" para fechas lejanas
+        }
+
+        // 3. Si el grupo cambia respecto al anterior, insertamos el título nuevo
+        if (group !== currentGroup) {
+            // Añadí un pequeño padding-bottom (pb-2) para separar título de tarjetas
+            html += `<h2 class="text-3xl font-bold text-white pt-6 pb-2">${group}</h2>`;
+            currentGroup = group;
+        }
+
+        html += crearTarjetaRecordatorio(r);
+    });
+
+    contenedor.innerHTML = html;
 }
 
 function crearTarjetaRecordatorio(r) {
-    const date = new Date(r.proximaDosis).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); const color = r.frecuencia === 1 ? 'bg-warning' : 'bg-primary';
-    return `<div class="flex rounded-xl bg-card-dark overflow-hidden mb-4"><div class="w-1.5 ${color}"></div><div class="flex-1 p-6"><p class="text-4xl font-bold text-white">${date}</p><p class="text-2xl text-zinc-200">${r.nombre}</p><div class="flex gap-4 mt-4"><button class="btn-borrar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-red-400 font-bold" data-id="${r.id}">Eliminar</button></div></div></div>`;
+    // Formato de hora AM/PM
+    const date = new Date(r.proximaDosis).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    const color = r.frecuencia === 1 ? 'bg-warning' : 'bg-primary';
+    const dosisHtml = r.dosis ? `<p class="text-xl text-zinc-400 mt-1">${r.dosis}</p>` : '';
+
+    return `
+    <div class="flex rounded-xl bg-card-dark overflow-hidden mb-4">
+        <div class="w-1.5 ${color}"></div>
+        <div class="flex-1 p-6">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-4xl font-bold text-white">${date}</p>
+                    <p class="text-2xl text-zinc-200 font-medium mt-1">${r.nombre}</p>
+                    ${dosisHtml}
+                </div>
+            </div>
+            
+            <div class="flex gap-4 mt-4">
+                <button class="btn-editar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-primary font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">
+                    Editar
+                </button>
+                <button class="btn-borrar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-red-400 font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>`;
 }
 
 function borrarRecordatorio(id) {
     if (!confirm("¿Borrar?")) return; let r = JSON.parse(localStorage.getItem('recordatorios')) || []; r = r.filter(x => x.id != id); localStorage.setItem('recordatorios', JSON.stringify(r)); const c = document.getElementById('contenedor-recordatorios'); if (c) mostrarRecordatoriosIndex(c);
 }
 
-let alarmModal, alarmSound;
-function showAlarm(r) {
-    alarmModal = document.getElementById('alarm-modal'); alarmSound = document.getElementById('alarm-sound');
-    if (alarmModal) { document.getElementById('alarm-name').textContent = r.nombre; document.getElementById('alarm-time').textContent = new Date(r.proximaDosis).toLocaleTimeString(); alarmModal.classList.remove('hidden'); try { alarmSound.play(); } catch (e) { } }
+function editarRecordatorio(id) {
+    const records = JSON.parse(localStorage.getItem('recordatorios')) || [];
+    const item = records.find(r => r.id == id);
+
+    if (item) {
+        // Guardamos temporalmente el medicamento a editar
+        localStorage.setItem('tempEditMed', JSON.stringify(item));
+        window.location.href = 'agregar.html';
+    }
 }
 
-// Slider Restaurado con Física de Arrastre
+let alarmModal, alarmSound;
+function showAlarm(r) {
+    alarmModal = document.getElementById('alarm-modal');
+    alarmSound = document.getElementById('alarm-sound');
+
+    if (alarmModal) {
+        document.getElementById('alarm-name').textContent = r.nombre;
+
+        // CORRECCIÓN: Usamos 'en-US' con hour12: true para asegurar formato AM/PM (ej: 8:30 PM)
+        document.getElementById('alarm-time').textContent = new Date(r.proximaDosis).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        // Opcional: Si quieres que también se actualice la dosis en la alarma (ya que está en el HTML)
+        const doseElement = document.getElementById('alarm-dose');
+        if (doseElement) {
+            doseElement.textContent = r.dosis || '';
+        }
+
+        alarmModal.classList.remove('hidden');
+        try { alarmSound.play(); } catch (e) { }
+    }
+}
+
 function initAlarmSlider() {
     const track = document.getElementById('slider-track');
     const thumb = document.getElementById('slider-thumb');
