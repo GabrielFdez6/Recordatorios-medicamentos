@@ -1,16 +1,16 @@
-// --- main.js (Versión FINAL: Completa con Edición, Voz Natural y UI Mejorada) ---
+// --- main.js (Versión FINAL: Con Asistente de Formulario Inteligente) ---
 
 import { createSpeechRecognition, isSpeechRecognitionSupported } from './core/speechRecognitionFactory.js';
 import { RecognitionModeManager } from './core/recognitionModeManager.js';
 import { SpeechSynthesisService } from './core/speechSynthesisService.js';
-import { MedicationFormAssistant } from './core/medicationFormAssistant.js';
+import { MedicationFormAssistant } from './core/medicationFormAssistant.js'; // <--- NUEVO IMPORT
 
 // Variables globales
 let modeManager;
 let speechService;
 let voiceStatusIcon;
 let listeningMode;
-let formAssistant = null;
+let formAssistant = null; // <--- Variable para el asistente
 
 // Variables de Control de Flujo (Temporizadores)
 let inactivityTimer = null;
@@ -86,12 +86,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 2. SISTEMA DE VOZ ---
     voiceStatusIcon = document.getElementById('voice-status-icon');
 
-    if (document.getElementById('contenedor-recordatorios')) {
+    // Verificamos si hay contenedor de recordatorios (Index) O si estamos en Agregar (Formulario)
+    // para decidir si activar la voz.
+    if (document.getElementById('contenedor-recordatorios') || document.getElementById('med-name')) {
 
         if (isSpeechRecognitionSupported()) {
             speechService = new SpeechSynthesisService({ lang: 'es-ES' });
             const recognition = createSpeechRecognition({ lang: 'es-ES', continuous: true, interimResults: false });
             modeManager = new RecognitionModeManager(recognition);
+
+            // --- INICIALIZACIÓN DEL ASISTENTE DE FORMULARIO ---
+            // Si existe el campo 'med-name', estamos en la página de agregar/editar
+            if (document.getElementById('med-name')) {
+                formAssistant = new MedicationFormAssistant(speechService);
+            }
 
             // --- Configuración del Modo de Escucha ---
             listeningMode = {
@@ -131,11 +139,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const command = finalTranscript.toLowerCase().trim();
                     if (command) {
                         console.log("🗣️ Comando detectado:", command);
+
+                        // --- LÓGICA DE ENRUTAMIENTO ---
                         if (interactionState === 'CONFIRMATION') {
                             procesarConfirmacion(command);
-                        } else {
+                        }
+                        // Si tenemos una instancia del asistente, estamos en el formulario
+                        else if (formAssistant) {
+                            handleFormVoiceInteraction(command);
+                        }
+                        // Comandos generales (navegación, lectura)
+                        else {
                             procesarComando(command);
                         }
+
                     } else {
                         startInactivityTimer();
                     }
@@ -179,9 +196,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
                 setTimeout(() => {
                     interactionState = 'NORMAL';
-                    speechService.speak(textoBienvenida, () => {
-                        modeManager.start(listeningMode);
-                    });
+                    // Si NO estamos en el formulario, damos la bienvenida normal.
+                    // Si estamos en el formulario, el setupAgregarPage se encargará del saludo específico.
+                    if (!formAssistant) {
+                        speechService.speak(textoBienvenida, () => {
+                            modeManager.start(listeningMode);
+                        });
+                    }
                 }, 500);
 
             } else if (preferenciaVoz === 'false') {
@@ -390,6 +411,45 @@ function procesarComando(command) {
     }
 }
 
+// =======================================================
+// NUEVO: MANEJO INTELIGENTE DEL FORMULARIO
+// =======================================================
+function handleFormVoiceInteraction(command) {
+    if (!formAssistant) return;
+
+    modeManager.stop({ manual: true }); // Pausar escucha para procesar/hablar
+
+    // Comandos especiales de navegación dentro del formulario
+    if (command.includes('cancelar') || command.includes('volver')) {
+        speechService.speak("Cancelando. Volviendo al inicio.", () => window.location.href = 'index.html');
+        return;
+    }
+
+    // Comando de finalización manual
+    if (command.includes('guardar') || (command.includes('sí') && command.includes('guardar'))) {
+        document.getElementById('btn-agregar').click();
+        return;
+    }
+
+    // Delegar al asistente inteligente para parsing de dosis, hora, nombre...
+    formAssistant.processInput(
+        command,
+        // Callback de Éxito (Todo capturado)
+        (successMessage) => {
+            speechService.speak(successMessage, () => {
+                // Reactivamos escucha esperando un "Sí, guardar"
+                modeManager.start(listeningMode);
+            });
+        },
+        // Callback de Pregunta (Falta algo)
+        (question) => {
+            speechService.speak(question, () => {
+                modeManager.start(listeningMode);
+            });
+        }
+    );
+}
+
 function obtenerTextoRecordatorios() {
     const r = JSON.parse(localStorage.getItem('recordatorios')) || [];
     const act = r.filter(x => !x.completado);
@@ -412,40 +472,163 @@ const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) setupAgregarPage();
 
 function setupAgregarPage() {
+    // --- Referencias al DOM ---
     const medNameInput = document.getElementById('med-name');
-    const medSuggestionsBox = document.getElementById('med-suggestions');
     const medNameContainer = medNameInput.parentElement;
     const medNameButton = medNameContainer.querySelector('button');
-    const botonAgregar = document.getElementById('btn-agregar'); // Aseguramos referencia
+    const medDoseContainer = document.getElementById('med-dose').parentElement;
+    const medDoseButton = medDoseContainer.querySelector('button');
+    const botonAgregar = document.getElementById('btn-agregar');
 
-    // --- Lógica de Edición (NUEVO) ---
+    // --- Elementos del Overlay ---
+    const voiceOverlay = document.getElementById('voice-overlay');
+    const voiceTextarea = document.getElementById('voice-transcript-box');
+    const btnCloseVoice = document.getElementById('btn-close-voice');
+    const btnProcessVoice = document.getElementById('btn-process-voice');
+
+    // --- LÓGICA DE EDICIÓN ---
     const editData = JSON.parse(localStorage.getItem('tempEditMed'));
     if (editData) {
-        // 1. Rellenar campos
         document.getElementById('med-name').value = editData.nombre;
         document.getElementById('med-dose').value = editData.dosis || '';
         document.getElementById('med-frequency').value = editData.frecuencia;
 
-        // 2. Calcular fecha y hora desde el timestamp guardado
         const nextDate = new Date(editData.proximaDosis);
-
-        // Formato YYYY-MM-DD para el input date
         const yyyy = nextDate.getFullYear();
         const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
         const dd = String(nextDate.getDate()).padStart(2, '0');
         document.getElementById('med-date').value = `${yyyy}-${mm}-${dd}`;
 
-        // Formato HH:MM para el input time
         const hh = String(nextDate.getHours()).padStart(2, '0');
         const min = String(nextDate.getMinutes()).padStart(2, '0');
         document.getElementById('med-time').value = `${hh}:${min}`;
 
-        // 3. Cambiar texto del botón
         const btnSpan = botonAgregar.querySelector('span');
         if (btnSpan) btnSpan.textContent = 'Guardar Cambios';
     }
-    // -------------------------------
 
+    // =======================================================
+    // NUEVA LÓGICA DE VOZ (DICTADO SIN CORTES)
+    // =======================================================
+
+    // Definimos un modo especial SOLO para dictado (sin temporizador)
+    const dictationMode = {
+        name: 'dictation',
+        continuous: true,
+        interimResults: true,
+
+        onStart: () => {
+            // AQUÍ ESTÁ LA CLAVE: Limpiamos cualquier timer global existente
+            // y NO iniciamos uno nuevo.
+            clearInactivityTimer();
+            console.log("🎙️ Modo Dictado Iniciado (Sin timer)");
+        },
+
+        onResult: (event) => {
+            // Aseguramos que el timer siga muerto
+            clearInactivityTimer();
+
+            let finalTranscript = '';
+            // Solo nos interesa concatenar texto, no analizar comandos
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            if (finalTranscript) {
+                const currentText = voiceTextarea.value.trim();
+                voiceTextarea.value = currentText ? currentText + " " + finalTranscript : finalTranscript;
+
+                // Auto-scroll al final
+                voiceTextarea.scrollTop = voiceTextarea.scrollHeight;
+            }
+        },
+
+        onEnd: () => {
+            // Si se corta por silencio del sistema (no por timer nuestro),
+            // podríamos intentar reiniciar si el overlay sigue abierto.
+            if (!voiceOverlay.classList.contains('hidden')) {
+                console.log("🔄 Reiniciando dictado...");
+                // Pequeño delay para evitar bucles rápidos
+                setTimeout(() => {
+                    if (!voiceOverlay.classList.contains('hidden') && modeManager) {
+                        modeManager.start(dictationMode);
+                    }
+                }, 200);
+            }
+        },
+
+        onError: (event) => {
+            console.warn("Error dictado:", event.error);
+            clearInactivityTimer();
+        }
+    };
+
+    const abrirLienzoDeVoz = () => {
+        if (!speechService || !modeManager || !formAssistant) {
+            alert("El sistema de voz no está listo. Recarga la página.");
+            return;
+        }
+
+        voiceTextarea.value = "";
+        voiceOverlay.classList.remove('hidden');
+        voiceOverlay.classList.add('flex');
+
+        // Detener todo lo anterior y limpiar timers
+        modeManager.stop({ manual: true });
+        speechService.stop();
+        clearInactivityTimer();
+
+        // Feedback y arrancar el modo DICTADO
+        speechService.speak("Te escucho", () => {
+            modeManager.start(dictationMode);
+        });
+    };
+
+    const cerrarLienzo = () => {
+        modeManager.stop({ manual: true });
+        clearInactivityTimer(); // Asegurar limpieza
+        voiceOverlay.classList.add('hidden');
+        voiceOverlay.classList.remove('flex');
+    };
+
+    // Botones del Overlay
+    if (btnCloseVoice) {
+        btnCloseVoice.addEventListener('click', cerrarLienzo);
+    }
+
+    if (btnProcessVoice) {
+        btnProcessVoice.addEventListener('click', () => {
+            cerrarLienzo(); // Detiene la escucha
+
+            const textoDictado = voiceTextarea.value;
+            const resultado = formAssistant.fillFromText(textoDictado);
+
+            let mensaje = "Datos copiados.";
+
+            // Solo notificamos si falta Hora o Frecuencia (Nombre/Dosis ya no importan)
+            if (resultado.missing.length > 0) {
+                mensaje += " Falta: " + resultado.missing.join(" y ");
+                // Opcional: volver a abrir micro para preguntar solo eso, 
+                // pero por ahora solo avisamos.
+            } else {
+                mensaje += " Revisa y guarda.";
+            }
+
+            speechService.speak(mensaje);
+        });
+    }
+
+    // Asignar a los iconos
+    if (medNameButton) medNameButton.addEventListener('click', abrirLienzoDeVoz);
+    if (medDoseButton) medDoseButton.addEventListener('click', abrirLienzoDeVoz);
+
+    // =======================================================
+    // LÓGICA ORIGINAL (Sugerencias y Guardado)
+    // =======================================================
+
+    // ... (Mantenemos esta parte idéntica para no romper funcionalidad) ...
     const MEDICAMENTOS_COMUNES = [
         'Aciclovir', 'Ácido acetilsalicílico', 'Ácido clavulánico', 'Ácido fusídico', 'Ácido valproico',
         'Albendazol', 'Alprazolam', 'Amitriptilina', 'Amlodipino', 'Amoxicilina', 'Ampicilina', 'Aripiprazol',
@@ -473,25 +656,47 @@ function setupAgregarPage() {
         'Warfarina', 'Zanamivir', 'Zidovudina', 'Zolpidem'
     ];
 
-    function showSuggestions() { medNameContainer.classList.remove('rounded-xl'); medNameContainer.classList.add('rounded-t-xl'); medNameInput.classList.remove('rounded-l-xl'); medNameInput.classList.add('rounded-tl-xl'); medNameButton.classList.remove('rounded-r-xl'); medNameButton.classList.add('rounded-tr-xl'); medSuggestionsBox.classList.remove('hidden'); }
-    function hideSuggestions() { medNameContainer.classList.remove('rounded-t-xl'); medNameContainer.classList.add('rounded-xl'); medNameInput.classList.remove('rounded-tl-xl'); medNameInput.classList.add('rounded-l-xl'); medNameButton.classList.remove('rounded-tr-xl'); medNameButton.classList.add('rounded-r-xl'); medSuggestionsBox.classList.add('hidden'); }
+    function showSuggestions() {
+        medNameContainer.classList.remove('rounded-xl'); medNameContainer.classList.add('rounded-t-xl');
+        medNameInput.classList.remove('rounded-l-xl'); medNameInput.classList.add('rounded-tl-xl');
+        medNameButton.classList.remove('rounded-r-xl'); medNameButton.classList.add('rounded-tr-xl');
+        document.getElementById('med-suggestions').classList.remove('hidden');
+    }
+
+    function hideSuggestions() {
+        medNameContainer.classList.remove('rounded-t-xl'); medNameContainer.classList.add('rounded-xl');
+        medNameInput.classList.remove('rounded-tl-xl'); medNameInput.classList.add('rounded-l-xl');
+        medNameButton.classList.remove('rounded-tr-xl'); medNameButton.classList.add('rounded-r-xl');
+        document.getElementById('med-suggestions').classList.add('hidden');
+    }
 
     medNameInput.addEventListener('input', () => {
         const inputText = medNameInput.value.toLowerCase().trim();
-        medSuggestionsBox.innerHTML = '';
+        const box = document.getElementById('med-suggestions');
+        box.innerHTML = '';
         if (inputText.length === 0) { hideSuggestions(); return; }
         const suggestions = MEDICAMENTOS_COMUNES.filter(med => med.toLowerCase().startsWith(inputText));
         if (suggestions.length === 0) { hideSuggestions(); return; }
         suggestions.forEach(med => {
-            const el = document.createElement('div'); el.className = 'p-4 text-white text-lg bg-gray-900 border-b border-gray-700 last:border-b-0 hover:bg-surface-dark cursor-pointer'; el.textContent = med; el.dataset.name = med; medSuggestionsBox.appendChild(el);
+            const el = document.createElement('div');
+            el.className = 'p-4 text-white text-lg bg-gray-900 border-b border-gray-700 last:border-b-0 hover:bg-surface-dark cursor-pointer';
+            el.textContent = med;
+            el.dataset.name = med;
+            box.appendChild(el);
         });
         showSuggestions();
     });
 
-    medSuggestionsBox.addEventListener('click', (event) => { const clicked = event.target.closest('[data-name]'); if (clicked) { medNameInput.value = clicked.dataset.name; medSuggestionsBox.innerHTML = ''; hideSuggestions(); medNameInput.focus(); } });
+    document.getElementById('med-suggestions').addEventListener('click', (e) => {
+        const c = e.target.closest('[data-name]');
+        if (c) {
+            medNameInput.value = c.dataset.name;
+            hideSuggestions();
+        }
+    });
+
     medNameInput.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
 
-    // --- Lógica de Guardado (MODIFICADA) ---
     botonAgregar.addEventListener('click', async () => {
         const nombre = document.getElementById('med-name').value;
         const frecuencia = document.getElementById('med-frequency').value;
@@ -499,11 +704,13 @@ function setupAgregarPage() {
         const hora = document.getElementById('med-time').value;
         const dosis = document.getElementById('med-dose').value;
 
-        if (!nombre || !fecha || !hora) { alert("Faltan datos"); return; }
+        if (!nombre || !fecha || !hora) {
+            alert("Faltan datos importantes (Nombre, Fecha o Hora)");
+            return;
+        }
 
         let records = JSON.parse(localStorage.getItem('recordatorios')) || [];
 
-        // Calcular próxima dosis
         const partesFecha = fecha.split('-').map(Number);
         const partesHora = hora.split(':').map(Number);
         const fechaObj = new Date();
@@ -511,29 +718,26 @@ function setupAgregarPage() {
         fechaObj.setHours(partesHora[0], partesHora[1], 0, 0);
 
         let prox = fechaObj.getTime();
-        // Si la fecha elegida ya pasó, calculamos la siguiente automáticamente
         if (prox <= Date.now()) prox += (parseInt(frecuencia) * 60000);
 
         if (editData) {
-            // MODO EDICIÓN: Buscamos y actualizamos
             const index = records.findIndex(r => r.id === editData.id);
             if (index !== -1) {
                 records[index] = {
                     ...records[index],
-                    nombre: nombre,
-                    dosis: dosis,
+                    nombre,
+                    dosis,
                     frecuencia: parseInt(frecuencia),
                     proximaDosis: prox,
-                    completado: false // Reseteamos el estado al editar
+                    completado: false
                 };
             }
-            localStorage.removeItem('tempEditMed'); // Limpiamos
+            localStorage.removeItem('tempEditMed');
         } else {
-            // MODO CREACIÓN
             records.push({
                 id: Date.now(),
-                nombre: nombre,
-                dosis: dosis,
+                nombre,
+                dosis,
                 frecuencia: parseInt(frecuencia),
                 proximaDosis: prox,
                 completado: false
