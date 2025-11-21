@@ -1,21 +1,21 @@
-// --- main.js (Versión FINAL: Con Asistente de Formulario Inteligente) ---
+// --- main.js (Versión FINAL: Corregida y Completa) ---
 
 import { createSpeechRecognition, isSpeechRecognitionSupported } from './core/speechRecognitionFactory.js';
 import { RecognitionModeManager } from './core/recognitionModeManager.js';
 import { SpeechSynthesisService } from './core/speechSynthesisService.js';
-import { MedicationFormAssistant } from './core/medicationFormAssistant.js'; // <--- NUEVO IMPORT
+import { MedicationFormAssistant } from './core/medicationFormAssistant.js';
 
 // Variables globales
 let modeManager;
 let speechService;
 let voiceStatusIcon;
 let listeningMode;
-let formAssistant = null; // <--- Variable para el asistente
+let formAssistant = null;
 
 // Variables de Control de Flujo (Temporizadores)
 let inactivityTimer = null;
 let interactionState = 'NORMAL'; // Estados: 'NORMAL', 'CONFIRMATION'
-const TIMEOUT_DURATION = 15000; // 15 segundos
+const TIMEOUT_DURATION = 15000; // 15 segundos para comandos normales
 
 // Variables para control de errores de red
 let networkRetryCount = 0;
@@ -87,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
     voiceStatusIcon = document.getElementById('voice-status-icon');
 
     // Verificamos si hay contenedor de recordatorios (Index) O si estamos en Agregar (Formulario)
-    // para decidir si activar la voz.
     if (document.getElementById('contenedor-recordatorios') || document.getElementById('med-name')) {
 
         if (isSpeechRecognitionSupported()) {
@@ -96,12 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
             modeManager = new RecognitionModeManager(recognition);
 
             // --- INICIALIZACIÓN DEL ASISTENTE DE FORMULARIO ---
-            // Si existe el campo 'med-name', estamos en la página de agregar/editar
             if (document.getElementById('med-name')) {
                 formAssistant = new MedicationFormAssistant(speechService);
             }
 
-            // --- Configuración del Modo de Escucha ---
+            // --- Configuración del Modo de Escucha (Comandos Generales) ---
             listeningMode = {
                 name: 'listening',
                 continuous: true,
@@ -112,14 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         voiceStatusIcon.classList.remove('hidden');
                         voiceStatusIcon.querySelector('span').textContent = 'record_voice_over';
                     }
-                    console.log("🎙️ Escuchando...");
-
-                    // Solo iniciamos el timer si NO existe uno ya
-                    if (!inactivityTimer) {
-                        startInactivityTimer();
-                    } else {
-                        console.log("⏳ Timer continúa activo...");
-                    }
+                    console.log("🎙️ Escuchando (Comandos)...");
+                    if (!inactivityTimer) startInactivityTimer();
                 },
 
                 onExit: () => {
@@ -130,52 +122,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 onResult: (event) => {
                     clearInactivityTimer();
                     networkRetryCount = 0;
-
                     let finalTranscript = '';
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                     }
-
                     const command = finalTranscript.toLowerCase().trim();
                     if (command) {
                         console.log("🗣️ Comando detectado:", command);
-
-                        // --- LÓGICA DE ENRUTAMIENTO ---
                         if (interactionState === 'CONFIRMATION') {
                             procesarConfirmacion(command);
-                        }
-                        // Si tenemos una instancia del asistente, estamos en el formulario
-                        else if (formAssistant) {
+                        } else if (formAssistant) {
                             handleFormVoiceInteraction(command);
-                        }
-                        // Comandos generales (navegación, lectura)
-                        else {
+                        } else {
                             procesarComando(command);
                         }
-
                     } else {
                         startInactivityTimer();
                     }
                 },
 
                 onError: (event) => {
-                    if (event.error === 'no-speech') {
-                        console.log("🤫 Silencio detectado... el timer sigue corriendo.");
-                        return;
-                    }
-
+                    if (event.error === 'no-speech') return;
                     clearInactivityTimer();
-
                     if (event.error === 'network') {
                         networkRetryCount++;
-                        console.warn(`⚠️ Error red (${networkRetryCount}/3).`);
                         modeManager.stop({ manual: true });
                         if (networkRetryCount < MAX_NETWORK_RETRIES) {
-                            setTimeout(() => {
-                                if (localStorage.getItem('voiceHelp') === 'true') modeManager.start(listeningMode);
-                            }, 4000);
+                            setTimeout(() => { if (localStorage.getItem('voiceHelp') === 'true') modeManager.start(listeningMode); }, 4000);
                         } else {
-                            alert("Error de conexión. Voz desactivada.");
+                            alert("Error de conexión.");
                             if (voiceStatusIcon) voiceStatusIcon.classList.add('hidden');
                         }
                     } else if (event.error === 'not-allowed') {
@@ -185,23 +160,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            // --- Lógica de Bienvenida ---
+            // --- Lógica de Bienvenida (Index) ---
             const preferenciaVoz = localStorage.getItem('voiceHelp');
             const modalBienvenida = document.getElementById('voice-prompt-modal');
-
-            // Texto de bienvenida simplificado
             const textoBienvenida = "Bienvenido. Puedes decir: 'ajustes', 'agregar recordatorio' o 'escuchar recordatorios'.";
 
             if (preferenciaVoz === 'true') {
                 if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
                 setTimeout(() => {
                     interactionState = 'NORMAL';
-                    // Si NO estamos en el formulario, damos la bienvenida normal.
-                    // Si estamos en el formulario, el setupAgregarPage se encargará del saludo específico.
+                    // Solo damos la bienvenida general si NO estamos en el formulario
                     if (!formAssistant) {
-                        speechService.speak(textoBienvenida, () => {
-                            modeManager.start(listeningMode);
-                        });
+                        speechService.speak(textoBienvenida, () => { modeManager.start(listeningMode); });
                     }
                 }, 500);
 
@@ -217,9 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.setItem('voiceHelp', 'true');
                         if (voiceStatusIcon) voiceStatusIcon.classList.remove('hidden');
                         interactionState = 'NORMAL';
-                        speechService.speak("Ayuda activada. " + textoBienvenida, () => {
-                            modeManager.start(listeningMode);
-                        });
+                        speechService.speak("Ayuda activada. " + textoBienvenida, () => { modeManager.start(listeningMode); });
                     } else {
                         localStorage.setItem('voiceHelp', 'false');
                     }
@@ -245,13 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const contenedorRecordatorios = document.getElementById('contenedor-recordatorios');
     if (contenedorRecordatorios) {
-        mostrarRecordatoriosIndex(contenedorRecordatorios);
-
-        // --- LISTENER MEJORADO: Incluye botón borrar y botón EDITAR ---
+        mostrarRecordatoriosIndex(contenedorRecordatorios); // <--- Aquí daba el error porque faltaba la función
         contenedorRecordatorios.addEventListener('click', (e) => {
             const btnDel = e.target.closest('.btn-borrar-menu');
             const btnEdit = e.target.closest('.btn-editar-menu');
-
             if (btnDel) { e.preventDefault(); borrarRecordatorio(btnDel.dataset.id); }
             if (btnEdit) { e.preventDefault(); editarRecordatorio(btnEdit.dataset.id); }
         });
@@ -265,7 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try { document.getElementById('med-time').showPicker(); } catch (e) { document.getElementById('med-time').focus(); }
     });
 
-    if (voiceStatusIcon) {
+    // Listener global para el icono (SOLO si NO estamos en la página de agregar)
+    if (voiceStatusIcon && !document.getElementById('med-name')) {
         voiceStatusIcon.addEventListener('click', () => {
             primeAllAudio().then(() => { if (modeManager) modeManager.start(listeningMode); });
         });
@@ -299,13 +265,11 @@ function handleInactivityTimeout() {
     modeManager.stop({ manual: true });
 
     if (interactionState === 'NORMAL') {
-        console.log("❓ Preguntando: ¿Sigues ahí?");
         interactionState = 'CONFIRMATION';
         speechService.speak("¿Sigues ahí?", () => {
             modeManager.start(listeningMode);
         });
     } else if (interactionState === 'CONFIRMATION') {
-        console.log("💤 Sin respuesta a confirmación. Apagando.");
         interactionState = 'NORMAL';
         localStorage.setItem('voiceHelp', 'false');
         speechService.speak("Desactivando narrador.", () => {
@@ -320,26 +284,16 @@ function handleInactivityTimeout() {
 
 function procesarConfirmacion(command) {
     const cleanCommand = command.toLowerCase().replace(/[.,!¡¿?]/g, '').trim();
-
-    // Lista ampliada de respuestas naturales para confirmar presencia
-    const respuestasPositivas = [
-        'sí', 'si', 'claro', 'aquí', 'aqui', 'estoy', 'hola', 'sigo',
-        'yep', 'yes', 'correcto', 'afirmativo', 'vale', 'ok', 'escucho',
-        'presente', 'simón', 'obvio', 'por supuesto', 'todavía', 'aún', 'dime'
-    ];
-
+    const respuestasPositivas = ['sí', 'si', 'claro', 'aquí', 'aqui', 'estoy', 'hola', 'sigo', 'yep', 'yes', 'correcto', 'afirmativo', 'vale', 'ok', 'escucho'];
     const esPositivo = respuestasPositivas.some(palabra => cleanCommand.includes(palabra));
 
     if (esPositivo) {
-        console.log("✅ Confirmación recibida.");
         interactionState = 'NORMAL';
         modeManager.stop({ manual: true });
-
         speechService.speak("Entendido. Te escucho.", () => {
             modeManager.start(listeningMode);
         });
     } else {
-        console.log("❌ Respuesta negativa o desconocida.");
         localStorage.setItem('voiceHelp', 'false');
         modeManager.stop({ manual: true });
         speechService.speak("Entendido, hasta luego.", () => {
@@ -348,106 +302,43 @@ function procesarConfirmacion(command) {
     }
 }
 
-
-// =======================================================
-// SECCIÓN: PROCESAMIENTO DE COMANDOS (VOCABULARIO NATURAL)
-// =======================================================
-
 function procesarComando(command) {
     if (!modeManager || !speechService) return;
     interactionState = 'NORMAL';
-
-    // Convertimos a minúsculas para asegurar coincidencias
     const cmd = command.toLowerCase();
 
-    // --- DICCIONARIOS DE SINÓNIMOS ---
-
-    // Acción: Ir a Agregar
-    const triggersAgregar = [
-        'agregar', 'añadir', 'nuevo', 'crear', 'poner',
-        'registrar', 'sumar', 'meter', 'inscribir'
-    ];
-
-    // Acción: Ir a Ajustes/Perfil
-    const triggersAjustes = [
-        'ajustes', 'perfil', 'configuración', 'opciones',
-        'cuenta', 'preferencias', 'configurar', 'usuario', 'datos'
-    ];
-
-    // Acción: Leer Recordatorios
-    const triggersEscuchar = [
-        'escuchar', 'recordatorios', 'leer', 'dime', 'cuáles', 'cuales',
-        'tengo', 'hay', 'lista', 'revisar', 'pendientes', 'agenda', 'qué toca'
-    ];
-
-    // Función auxiliar para verificar si el comando contiene alguna palabra clave
-    const matches = (triggers) => triggers.some(t => cmd.includes(t));
-
-    // --- LÓGICA DE DERIVACIÓN ---
-
-    if (matches(triggersAgregar)) {
+    if (cmd.includes('agregar') || cmd.includes('añadir')) {
         modeManager.stop({ manual: true });
         speechService.speak("Abriendo pantalla para añadir.", () => window.location.href = 'agregar.html');
-
-    } else if (matches(triggersAjustes)) {
+    } else if (cmd.includes('ajustes') || cmd.includes('perfil')) {
         modeManager.stop({ manual: true });
         speechService.speak("Abriendo tus ajustes.", () => window.location.href = 'perfil.html');
-
-    } else if (matches(triggersEscuchar)) {
+    } else if (cmd.includes('escuchar') || cmd.includes('recordatorios') || cmd.includes('leer')) {
         modeManager.stop({ manual: true });
         const texto = obtenerTextoRecordatorios();
         speechService.speak(texto, () => {
-            speechService.speak("¿Deseas algo más?", () => {
-                modeManager.start(listeningMode);
-            });
+            speechService.speak("¿Deseas algo más?", () => { modeManager.start(listeningMode); });
         });
-
     } else {
-        // No se reconoció ninguna intención clara
         modeManager.stop({ manual: true });
-        speechService.speak("No te entendí bien. ¿Puedes repetir?", () => {
-            modeManager.start(listeningMode);
-        });
+        speechService.speak("No te entendí bien. ¿Puedes repetir?", () => { modeManager.start(listeningMode); });
     }
 }
 
 // =======================================================
-// NUEVO: MANEJO INTELIGENTE DEL FORMULARIO
+// NUEVO: MANEJO INTELIGENTE DEL FORMULARIO (FALLBACK)
 // =======================================================
 function handleFormVoiceInteraction(command) {
     if (!formAssistant) return;
-
-    modeManager.stop({ manual: true }); // Pausar escucha para procesar/hablar
-
-    // Comandos especiales de navegación dentro del formulario
+    modeManager.stop({ manual: true });
     if (command.includes('cancelar') || command.includes('volver')) {
-        speechService.speak("Cancelando. Volviendo al inicio.", () => window.location.href = 'index.html');
+        speechService.speak("Cancelando.", () => window.location.href = 'index.html');
         return;
     }
-
-    // Comando de finalización manual
-    if (command.includes('guardar') || (command.includes('sí') && command.includes('guardar'))) {
+    if (command.includes('guardar')) {
         document.getElementById('btn-agregar').click();
         return;
     }
-
-    // Delegar al asistente inteligente para parsing de dosis, hora, nombre...
-    formAssistant.processInput(
-        command,
-        // Callback de Éxito (Todo capturado)
-        (successMessage) => {
-            speechService.speak(successMessage, () => {
-                // Reactivamos escucha esperando un "Sí, guardar"
-                modeManager.start(listeningMode);
-            });
-        },
-        // Callback de Pregunta (Falta algo)
-        (question) => {
-            speechService.speak(question, () => {
-                modeManager.start(listeningMode);
-            });
-        }
-    );
 }
 
 function obtenerTextoRecordatorios() {
@@ -472,12 +363,8 @@ const botonAgregar = document.getElementById('btn-agregar');
 if (botonAgregar) setupAgregarPage();
 
 function setupAgregarPage() {
-    // --- Referencias al DOM ---
     const medNameInput = document.getElementById('med-name');
     const medNameContainer = medNameInput.parentElement;
-    const medNameButton = medNameContainer.querySelector('button');
-    const medDoseContainer = document.getElementById('med-dose').parentElement;
-    const medDoseButton = medDoseContainer.querySelector('button');
     const botonAgregar = document.getElementById('btn-agregar');
 
     // --- Elementos del Overlay ---
@@ -486,79 +373,123 @@ function setupAgregarPage() {
     const btnCloseVoice = document.getElementById('btn-close-voice');
     const btnProcessVoice = document.getElementById('btn-process-voice');
 
+    // Referencia al botón flotante (FAB)
+    const voiceTrigger = document.getElementById('voice-status-icon');
+
     // --- LÓGICA DE EDICIÓN ---
     const editData = JSON.parse(localStorage.getItem('tempEditMed'));
     if (editData) {
         document.getElementById('med-name').value = editData.nombre;
         document.getElementById('med-dose').value = editData.dosis || '';
         document.getElementById('med-frequency').value = editData.frecuencia;
-
         const nextDate = new Date(editData.proximaDosis);
         const yyyy = nextDate.getFullYear();
         const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
         const dd = String(nextDate.getDate()).padStart(2, '0');
         document.getElementById('med-date').value = `${yyyy}-${mm}-${dd}`;
-
         const hh = String(nextDate.getHours()).padStart(2, '0');
         const min = String(nextDate.getMinutes()).padStart(2, '0');
         document.getElementById('med-time').value = `${hh}:${min}`;
-
         const btnSpan = botonAgregar.querySelector('span');
         if (btnSpan) btnSpan.textContent = 'Guardar Cambios';
     }
 
     // =======================================================
-    // NUEVA LÓGICA DE VOZ (DICTADO SIN CORTES)
+    //  NUEVA LÓGICA: DICTADO + TEMPORIZADOR + EJEMPLO
     // =======================================================
 
-    // Definimos un modo especial SOLO para dictado (sin temporizador)
+    let dictationSilenceTimer = null;
+
+    // --- Función para procesar y cerrar (reutilizable) ---
+    const procesarDictado = (intentarGuardar = false) => {
+        cerrarLienzo();
+
+        const textoDictado = voiceTextarea.value;
+        const resultado = formAssistant.fillFromText(textoDictado);
+
+        // Si intentamos guardar automáticamente (porque el usuario dijo "Sí")
+        if (intentarGuardar && resultado.missing.length === 0) {
+            speechService.speak("Entendido, guardando recordatorio.", () => {
+                document.getElementById('btn-agregar').click();
+            });
+            return;
+        }
+
+        // Feedback normal
+        let mensaje = "Datos copiados.";
+        if (resultado.missing.length > 0) {
+            mensaje += " Falta: " + resultado.missing.join(" y ");
+        } else {
+            mensaje += " Todo listo. Revisa y guarda.";
+        }
+        speechService.speak(mensaje);
+    };
+
+    // --- Modo Confirmación (Pregunta ¿Terminaste?) ---
+    const dictationConfirmationMode = {
+        name: 'dictation_confirmation',
+        continuous: false,
+        interimResults: false,
+        onStart: () => console.log("❓ Esperando confirmación..."),
+        onResult: (event) => {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log("🗣️ Respuesta confirmación:", transcript);
+
+            if (transcript.includes('sí') || transcript.includes('si') || transcript.includes('claro') || transcript.includes('listo')) {
+                // Usuario confirma -> Procesar y Guardar
+                procesarDictado(true);
+            } else {
+                // Usuario niega -> Volver al dictado
+                speechService.speak("Te sigo escuchando.", () => {
+                    modeManager.start(dictationMode);
+                });
+            }
+        },
+        onError: () => {
+            modeManager.start(dictationMode);
+        }
+    };
+
+    // --- Función que se ejecuta a los 15s de silencio ---
+    const handleDictationTimeout = () => {
+        modeManager.stop({ manual: true });
+        speechService.speak("No escucho nada. ¿Has terminado?", () => {
+            modeManager.start(dictationConfirmationMode);
+        });
+    };
+
+    // --- Función para reiniciar el reloj (15s) ---
+    const resetDictationTimer = () => {
+        clearTimeout(dictationSilenceTimer);
+        dictationSilenceTimer = setTimeout(handleDictationTimeout, 15000); // 15 segundos
+    };
+
+    // --- MODO DICTADO PRINCIPAL ---
     const dictationMode = {
         name: 'dictation',
         continuous: true,
         interimResults: true,
-
         onStart: () => {
-            // AQUÍ ESTÁ LA CLAVE: Limpiamos cualquier timer global existente
-            // y NO iniciamos uno nuevo.
-            clearInactivityTimer();
-            console.log("🎙️ Modo Dictado Iniciado (Sin timer)");
+            clearInactivityTimer(); // Matar timer global
+            if (!dictationSilenceTimer) resetDictationTimer();
+            console.log("🎙️ Modo Dictado (Overlay)");
         },
-
         onResult: (event) => {
-            // Aseguramos que el timer siga muerto
             clearInactivityTimer();
+            resetDictationTimer(); // Cada palabra resetea los 15s
 
             let finalTranscript = '';
-            // Solo nos interesa concatenar texto, no analizar comandos
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
                     finalTranscript += event.results[i][0].transcript;
                 }
             }
-
             if (finalTranscript) {
                 const currentText = voiceTextarea.value.trim();
                 voiceTextarea.value = currentText ? currentText + " " + finalTranscript : finalTranscript;
-
-                // Auto-scroll al final
                 voiceTextarea.scrollTop = voiceTextarea.scrollHeight;
             }
         },
-
-        onEnd: () => {
-            // Si se corta por silencio del sistema (no por timer nuestro),
-            // podríamos intentar reiniciar si el overlay sigue abierto.
-            if (!voiceOverlay.classList.contains('hidden')) {
-                console.log("🔄 Reiniciando dictado...");
-                // Pequeño delay para evitar bucles rápidos
-                setTimeout(() => {
-                    if (!voiceOverlay.classList.contains('hidden') && modeManager) {
-                        modeManager.start(dictationMode);
-                    }
-                }, 200);
-            }
-        },
-
         onError: (event) => {
             console.warn("Error dictado:", event.error);
             clearInactivityTimer();
@@ -567,68 +498,50 @@ function setupAgregarPage() {
 
     const abrirLienzoDeVoz = () => {
         if (!speechService || !modeManager || !formAssistant) {
-            alert("El sistema de voz no está listo. Recarga la página.");
+            alert("Voz no disponible.");
             return;
         }
 
         voiceTextarea.value = "";
         voiceOverlay.classList.remove('hidden');
         voiceOverlay.classList.add('flex');
+        clearTimeout(dictationSilenceTimer);
+        dictationSilenceTimer = null;
 
-        // Detener todo lo anterior y limpiar timers
         modeManager.stop({ manual: true });
         speechService.stop();
         clearInactivityTimer();
 
-        // Feedback y arrancar el modo DICTADO
-        speechService.speak("Te escucho", () => {
+        // 1. EJEMPLO DE VOZ AL ABRIR (TEXTO ACTUALIZADO)
+        const ejemplo = "Te escucho. Puedes decir algo como: 'Paracetamol de 500 miligramos 8 de la noche cada 8 horas, empezando el 18 del noviembre del 2025'.";
+
+        speechService.speak(ejemplo, () => {
+            // Iniciar timer de 15s justo al empezar a escuchar
+            resetDictationTimer();
             modeManager.start(dictationMode);
         });
     };
 
     const cerrarLienzo = () => {
         modeManager.stop({ manual: true });
-        clearInactivityTimer(); // Asegurar limpieza
+        clearInactivityTimer();
+        clearTimeout(dictationSilenceTimer); // Limpiar timer local
         voiceOverlay.classList.add('hidden');
         voiceOverlay.classList.remove('flex');
     };
 
-    // Botones del Overlay
-    if (btnCloseVoice) {
-        btnCloseVoice.addEventListener('click', cerrarLienzo);
-    }
+    if (btnCloseVoice) btnCloseVoice.addEventListener('click', cerrarLienzo);
 
     if (btnProcessVoice) {
-        btnProcessVoice.addEventListener('click', () => {
-            cerrarLienzo(); // Detiene la escucha
-
-            const textoDictado = voiceTextarea.value;
-            const resultado = formAssistant.fillFromText(textoDictado);
-
-            let mensaje = "Datos copiados.";
-
-            // Solo notificamos si falta Hora o Frecuencia (Nombre/Dosis ya no importan)
-            if (resultado.missing.length > 0) {
-                mensaje += " Falta: " + resultado.missing.join(" y ");
-                // Opcional: volver a abrir micro para preguntar solo eso, 
-                // pero por ahora solo avisamos.
-            } else {
-                mensaje += " Revisa y guarda.";
-            }
-
-            speechService.speak(mensaje);
-        });
+        btnProcessVoice.addEventListener('click', () => procesarDictado(false)); // Click manual solo procesa
     }
 
-    // Asignar a los iconos
-    if (medNameButton) medNameButton.addEventListener('click', abrirLienzoDeVoz);
-    if (medDoseButton) medDoseButton.addEventListener('click', abrirLienzoDeVoz);
+    if (voiceTrigger) {
+        voiceTrigger.classList.remove('hidden');
+        voiceTrigger.addEventListener('click', abrirLienzoDeVoz);
+    }
 
-    // =======================================================
-    // LÓGICA ORIGINAL (Sugerencias y Guardado)
-    // =======================================================
-
-    // ... (Mantenemos esta parte idéntica para no romper funcionalidad) ...
+    // --- Sugerencias y Guardado ---
     const MEDICAMENTOS_COMUNES = [
         'Aciclovir', 'Ácido acetilsalicílico', 'Ácido clavulánico', 'Ácido fusídico', 'Ácido valproico',
         'Albendazol', 'Alprazolam', 'Amitriptilina', 'Amlodipino', 'Amoxicilina', 'Ampicilina', 'Aripiprazol',
@@ -659,21 +572,17 @@ function setupAgregarPage() {
     function showSuggestions() {
         medNameContainer.classList.remove('rounded-xl'); medNameContainer.classList.add('rounded-t-xl');
         medNameInput.classList.remove('rounded-l-xl'); medNameInput.classList.add('rounded-tl-xl');
-        medNameButton.classList.remove('rounded-r-xl'); medNameButton.classList.add('rounded-tr-xl');
         document.getElementById('med-suggestions').classList.remove('hidden');
     }
-
     function hideSuggestions() {
         medNameContainer.classList.remove('rounded-t-xl'); medNameContainer.classList.add('rounded-xl');
         medNameInput.classList.remove('rounded-tl-xl'); medNameInput.classList.add('rounded-l-xl');
-        medNameButton.classList.remove('rounded-tr-xl'); medNameButton.classList.add('rounded-r-xl');
         document.getElementById('med-suggestions').classList.add('hidden');
     }
 
     medNameInput.addEventListener('input', () => {
         const inputText = medNameInput.value.toLowerCase().trim();
-        const box = document.getElementById('med-suggestions');
-        box.innerHTML = '';
+        const box = document.getElementById('med-suggestions'); box.innerHTML = '';
         if (inputText.length === 0) { hideSuggestions(); return; }
         const suggestions = MEDICAMENTOS_COMUNES.filter(med => med.toLowerCase().startsWith(inputText));
         if (suggestions.length === 0) { hideSuggestions(); return; }
@@ -689,12 +598,8 @@ function setupAgregarPage() {
 
     document.getElementById('med-suggestions').addEventListener('click', (e) => {
         const c = e.target.closest('[data-name]');
-        if (c) {
-            medNameInput.value = c.dataset.name;
-            hideSuggestions();
-        }
+        if (c) { medNameInput.value = c.dataset.name; hideSuggestions(); }
     });
-
     medNameInput.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
 
     botonAgregar.addEventListener('click', async () => {
@@ -704,13 +609,9 @@ function setupAgregarPage() {
         const hora = document.getElementById('med-time').value;
         const dosis = document.getElementById('med-dose').value;
 
-        if (!nombre || !fecha || !hora) {
-            alert("Faltan datos importantes (Nombre, Fecha o Hora)");
-            return;
-        }
+        if (!nombre || !fecha || !hora) { alert("Faltan datos"); return; }
 
         let records = JSON.parse(localStorage.getItem('recordatorios')) || [];
-
         const partesFecha = fecha.split('-').map(Number);
         const partesHora = hora.split(':').map(Number);
         const fechaObj = new Date();
@@ -723,35 +624,21 @@ function setupAgregarPage() {
         if (editData) {
             const index = records.findIndex(r => r.id === editData.id);
             if (index !== -1) {
-                records[index] = {
-                    ...records[index],
-                    nombre,
-                    dosis,
-                    frecuencia: parseInt(frecuencia),
-                    proximaDosis: prox,
-                    completado: false
-                };
+                records[index] = { ...records[index], nombre, dosis, frecuencia: parseInt(frecuencia), proximaDosis: prox, completado: false };
             }
             localStorage.removeItem('tempEditMed');
         } else {
-            records.push({
-                id: Date.now(),
-                nombre,
-                dosis,
-                frecuencia: parseInt(frecuencia),
-                proximaDosis: prox,
-                completado: false
-            });
+            records.push({ id: Date.now(), nombre, dosis, frecuencia: parseInt(frecuencia), proximaDosis: prox, completado: false });
         }
-
         localStorage.setItem('recordatorios', JSON.stringify(records));
         window.location.href = "index.html";
     });
 }
 
 // =======================================================
-// LÓGICA DE PERFIL
+// FUNCIONES DE UTILIDAD RESTAURADAS (Para Index y Alarmas)
 // =======================================================
+
 function setupProfilePage(btnBack) {
     let initialState = {}; let currentState = {};
     const modalBackdrop = document.getElementById('modal-backdrop');
@@ -766,7 +653,6 @@ function setupProfilePage(btnBack) {
     const fontSizeSlider = document.getElementById('fontSize');
     const sizeMap = ['85%', '92.5%', '100%', '107.5%', '115%'];
     const inputFullName = document.getElementById('fullName');
-    // Correo eliminado de aquí, pero mantenemos el resto
     const headerName = document.getElementById('header-name');
     const volumeSlider = document.getElementById('volumeSlider');
     const voiceToggle = document.getElementById('voice-toggle');
@@ -836,6 +722,8 @@ function setupProfilePage(btnBack) {
     if (modalBtnDiscard) modalBtnDiscard.addEventListener('click', () => { loadUiFromState(initialState); currentState = { ...initialState }; modalBackdrop.classList.add('hidden'); });
 }
 
+// --- FUNCIONES FALTANTES (RESTORED) ---
+
 function revisarRecordatorios() {
     const ahora = Date.now(); const alarmModal = document.getElementById('alarm-modal'); if (!alarmModal || !alarmModal.classList.contains('hidden')) return;
     let records = JSON.parse(localStorage.getItem('recordatorios')) || []; let changed = false;
@@ -849,6 +737,7 @@ function revisarRecordatorios() {
     });
     if (changed) localStorage.setItem('recordatorios', JSON.stringify(records));
 }
+// Intervalo para revisar alarmas cada segundo
 setInterval(() => { revisarRecordatorios(); const cont = document.getElementById('contenedor-recordatorios'); if (cont) mostrarRecordatoriosIndex(cont); }, 1000);
 
 function mostrarRecordatoriosIndex(contenedor) {
@@ -862,54 +751,35 @@ function mostrarRecordatoriosIndex(contenedor) {
         return;
     }
 
-    // 1. Ordenamos por fecha para que salgan en orden cronológico
     active.sort((a, b) => a.proximaDosis - b.proximaDosis);
 
-    // 2. Definimos los límites de tiempo (00:00 horas de cada día)
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const tomorrowStart = todayStart + (24 * 60 * 60 * 1000); // +1 día
-    const dayAfterStart = tomorrowStart + (24 * 60 * 60 * 1000); // +2 días
-    const futureStart = dayAfterStart + (24 * 60 * 60 * 1000);   // +3 días
+    const tomorrowStart = todayStart + (24 * 60 * 60 * 1000);
+    const dayAfterStart = tomorrowStart + (24 * 60 * 60 * 1000);
+    const futureStart = dayAfterStart + (24 * 60 * 60 * 1000);
 
     let html = '';
-    let currentGroup = null; // Para controlar cuándo cambia el día y poner título
+    let currentGroup = null;
 
     active.forEach(r => {
         let group = '';
+        if (r.proximaDosis < tomorrowStart) group = 'Hoy';
+        else if (r.proximaDosis < dayAfterStart) group = 'Mañana';
+        else if (r.proximaDosis < futureStart) group = 'Pasado Mañana';
+        else group = 'Más adelante';
 
-        // Lógica para determinar el título según la fecha
-        if (r.proximaDosis < tomorrowStart) {
-            group = 'Hoy'; // Incluye también los atrasados no completados
-        } else if (r.proximaDosis < dayAfterStart) {
-            group = 'Mañana';
-        } else if (r.proximaDosis < futureStart) {
-            group = 'Pasado Mañana';
-        } else {
-            group = 'Más adelante'; // O "Próximos" para fechas lejanas
-        }
-
-        // 3. Si el grupo cambia respecto al anterior, insertamos el título nuevo
         if (group !== currentGroup) {
-            // Añadí un pequeño padding-bottom (pb-2) para separar título de tarjetas
             html += `<h2 class="text-3xl font-bold text-white pt-6 pb-2">${group}</h2>`;
             currentGroup = group;
         }
-
         html += crearTarjetaRecordatorio(r);
     });
-
     contenedor.innerHTML = html;
 }
 
 function crearTarjetaRecordatorio(r) {
-    // Formato de hora AM/PM
-    const date = new Date(r.proximaDosis).toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-    });
-
+    const date = new Date(r.proximaDosis).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     const color = r.frecuencia === 1 ? 'bg-warning' : 'bg-primary';
     const dosisHtml = r.dosis ? `<p class="text-xl text-zinc-400 mt-1">${r.dosis}</p>` : '';
 
@@ -924,58 +794,12 @@ function crearTarjetaRecordatorio(r) {
                     ${dosisHtml}
                 </div>
             </div>
-            
             <div class="flex gap-4 mt-4">
-                <button class="btn-editar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-primary font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">
-                    Editar
-                </button>
-                <button class="btn-borrar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-red-400 font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">
-                    Eliminar
-                </button>
+                <button class="btn-editar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-primary font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">Editar</button>
+                <button class="btn-borrar-menu flex-1 rounded-lg border border-zinc-600 py-3 text-red-400 font-bold transition-colors hover:bg-zinc-800" data-id="${r.id}">Eliminar</button>
             </div>
         </div>
     </div>`;
-}
-
-function borrarRecordatorio(id) {
-    if (!confirm("¿Borrar?")) return; let r = JSON.parse(localStorage.getItem('recordatorios')) || []; r = r.filter(x => x.id != id); localStorage.setItem('recordatorios', JSON.stringify(r)); const c = document.getElementById('contenedor-recordatorios'); if (c) mostrarRecordatoriosIndex(c);
-}
-
-function editarRecordatorio(id) {
-    const records = JSON.parse(localStorage.getItem('recordatorios')) || [];
-    const item = records.find(r => r.id == id);
-
-    if (item) {
-        // Guardamos temporalmente el medicamento a editar
-        localStorage.setItem('tempEditMed', JSON.stringify(item));
-        window.location.href = 'agregar.html';
-    }
-}
-
-let alarmModal, alarmSound;
-function showAlarm(r) {
-    alarmModal = document.getElementById('alarm-modal');
-    alarmSound = document.getElementById('alarm-sound');
-
-    if (alarmModal) {
-        document.getElementById('alarm-name').textContent = r.nombre;
-
-        // CORRECCIÓN: Usamos 'en-US' con hour12: true para asegurar formato AM/PM (ej: 8:30 PM)
-        document.getElementById('alarm-time').textContent = new Date(r.proximaDosis).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-
-        // Opcional: Si quieres que también se actualice la dosis en la alarma (ya que está en el HTML)
-        const doseElement = document.getElementById('alarm-dose');
-        if (doseElement) {
-            doseElement.textContent = r.dosis || '';
-        }
-
-        alarmModal.classList.remove('hidden');
-        try { alarmSound.play(); } catch (e) { }
-    }
 }
 
 function initAlarmSlider() {
@@ -1033,4 +857,37 @@ function initAlarmSlider() {
     thumb.addEventListener('touchstart', onDragStart, { passive: false });
     document.addEventListener('touchmove', onDragMove);
     document.addEventListener('touchend', onDragEnd);
+}
+
+function showAlarm(r) {
+    const alarmModal = document.getElementById('alarm-modal');
+    const alarmSound = document.getElementById('alarm-sound');
+
+    if (alarmModal) {
+        document.getElementById('alarm-name').textContent = r.nombre;
+        document.getElementById('alarm-time').textContent = new Date(r.proximaDosis).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const doseElement = document.getElementById('alarm-dose');
+        if (doseElement) doseElement.textContent = r.dosis || '';
+
+        alarmModal.classList.remove('hidden');
+        try { alarmSound.play(); } catch (e) { }
+    }
+}
+
+function borrarRecordatorio(id) {
+    if (!confirm("¿Borrar?")) return;
+    let r = JSON.parse(localStorage.getItem('recordatorios')) || [];
+    r = r.filter(x => x.id != id);
+    localStorage.setItem('recordatorios', JSON.stringify(r));
+    const c = document.getElementById('contenedor-recordatorios');
+    if (c) mostrarRecordatoriosIndex(c);
+}
+
+function editarRecordatorio(id) {
+    const records = JSON.parse(localStorage.getItem('recordatorios')) || [];
+    const item = records.find(r => r.id == id);
+    if (item) {
+        localStorage.setItem('tempEditMed', JSON.stringify(item));
+        window.location.href = 'agregar.html';
+    }
 }

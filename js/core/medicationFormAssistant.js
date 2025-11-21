@@ -27,13 +27,12 @@ export class MedicationFormAssistant {
             processingText = timeResult.remainingText;
         }
 
-        // --- PASO B: EXTRAER Y BORRAR FECHA (Lógica Mejorada) ---
+        // --- PASO B: EXTRAER Y BORRAR FECHA ---
         const dateResult = this.extractDate(processingText);
         if (dateResult.found) {
             data.date = dateResult.value;
             processingText = dateResult.remainingText;
         } else {
-            // Default: Hoy (sin borrar texto)
             data.date = new Date().toISOString().split('T')[0];
         }
 
@@ -44,9 +43,13 @@ export class MedicationFormAssistant {
             processingText = freqResult.remainingText;
         }
 
-        // --- PASO D: LIMPIEZA FINAL (NOMBRE) ---
+        // --- PASO D: LIMPIEZA FINAL (NOMBRE Y BASURA) ---
         let finalName = processingText
+            // 1. Verbos y palabras de comando
             .replace(/agregar|nuevo|recordatorio|medicamento|tomar|iniciar|el dia|la fecha/g, '')
+            // 2. CONECTORES DE FRECUENCIA SOBRANTES (Aquí estaba el error)
+            .replace(/con\s+frecuencia\s+de|con\s+frecuencia|frecuencia\s+de|frecuencia|cada/g, '')
+            // 3. Limpieza general
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -98,8 +101,7 @@ export class MedicationFormAssistant {
     extractDate(text) {
         const today = new Date();
 
-        // 1. FECHAS NUMÉRICAS (Ej: "18 del 11", "5 de octubre", "10/12/2025")
-        // Grupo 1: Día, Grupo 2: Mes (número o nombre), Grupo 3: Año (Opcional)
+        // 1. FECHAS NUMÉRICAS (Ej: "18 del 11")
         const numericDateRegex = /(?:el\s+)?(\d{1,2})(?:\s+(?:de|del)\s+|\s*[\/\-]\s*)(\d{1,2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:(?:\s+(?:de|del)\s+|\s*[\/\-]\s*)(\d{2,4}))?/i;
 
         const numericMatch = text.match(numericDateRegex);
@@ -109,7 +111,6 @@ export class MedicationFormAssistant {
             let monthRaw = numericMatch[2].toLowerCase();
             let year = numericMatch[3] ? parseInt(numericMatch[3]) : today.getFullYear();
 
-            // Convertir nombre de mes a número (0-11)
             let monthIndex = -1;
             if (!isNaN(monthRaw)) {
                 monthIndex = parseInt(monthRaw) - 1;
@@ -119,12 +120,8 @@ export class MedicationFormAssistant {
             }
 
             if (monthIndex >= 0 && monthIndex <= 11) {
-                // Ajuste de año corto (ej: "25" -> 2025)
                 if (year < 100) year += 2000;
-
                 const targetDate = new Date(year, monthIndex, day);
-
-                // Formato YYYY-MM-DD
                 const yyyy = targetDate.getFullYear();
                 const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(targetDate.getDate()).padStart(2, '0');
@@ -146,7 +143,7 @@ export class MedicationFormAssistant {
             return { found: true, value: today.toISOString().split('T')[0], remainingText: text.replace('hoy', ' ') };
         }
 
-        // 3. DÍAS DE LA SEMANA ("el lunes")
+        // 3. DÍAS DE LA SEMANA
         const days = ['domingo', 'lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado'];
         for (let i = 0; i < days.length; i++) {
             if (text.includes(days[i])) {
@@ -155,7 +152,6 @@ export class MedicationFormAssistant {
                 if (daysToAdd <= 0) daysToAdd += 7;
 
                 const d = new Date(today); d.setDate(today.getDate() + daysToAdd);
-                // Borramos "el lunes" o solo "lunes"
                 const regex = new RegExp(`(?:el\\s+)?${days[i]}`, 'i');
                 return { found: true, value: d.toISOString().split('T')[0], remainingText: text.replace(regex, ' ') };
             }
@@ -166,15 +162,37 @@ export class MedicationFormAssistant {
 
     extractFrequency(text) {
         let freq = null;
-        let matchString = "";
+        let matchRegex = null;
 
-        if (text.includes('8 hora') || text.includes('8 hrs')) { freq = '480'; matchString = /(?:cada\s+)?8\s*(?:horas?|hrs)/i; }
-        else if (text.includes('12 hora') || text.includes('12 hrs')) { freq = '720'; matchString = /(?:cada\s+)?12\s*(?:horas?|hrs)/i; }
-        else if (text.includes('24 hora') || text.includes('una vez') || text.includes('diario')) { freq = '1440'; matchString = /(?:cada\s+)?(?:24\s*(?:horas?|hrs)|una\s+vez(?:\s+al\s+d[ií]a)?|diario)/i; }
-        else if (text.includes('minuto') || text.includes('prueba')) { freq = '1'; matchString = /(?:cada\s+)?(?:1\s+)?(?:minuto|prueba)/i; }
+        // Prefijo opcional para "comerse" los conectores junto con la hora
+        const prefix = "(?:con\\s+frecuencia\\s+(?:de\\s+)?|cada\\s+)?";
 
-        if (freq) {
-            return { found: true, value: freq, remainingText: text.replace(matchString, ' ') };
+        if (text.includes('8 hora') || text.includes('8 hrs')) {
+            freq = '480';
+            matchRegex = new RegExp(prefix + "8\\s*(?:horas?|hrs)", "i");
+        }
+        else if (text.includes('12 hora') || text.includes('12 hrs')) {
+            freq = '720';
+            matchRegex = new RegExp(prefix + "12\\s*(?:horas?|hrs)", "i");
+        }
+        else if (text.includes('24 hora') || text.includes('una vez') || text.includes('diario')) {
+            freq = '1440';
+            matchRegex = new RegExp(prefix + "(?:24\\s*(?:horas?|hrs)|una\\s+vez(?:\\s+al\\s+d[ií]a)?|diario)", "i");
+        }
+        else if (text.includes('minuto') || text.includes('prueba')) {
+            freq = '1';
+            matchRegex = new RegExp(prefix + "(?:1\\s+)?(?:minuto|prueba)", "i");
+        }
+
+        if (freq && matchRegex) {
+            const match = text.match(matchRegex);
+            if (match) {
+                return {
+                    found: true,
+                    value: freq,
+                    remainingText: text.replace(match[0], ' ')
+                };
+            }
         }
         return { found: false, remainingText: text };
     }
