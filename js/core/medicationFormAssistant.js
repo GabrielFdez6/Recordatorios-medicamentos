@@ -1,10 +1,11 @@
 export class MedicationFormAssistant {
-    constructor() {
+    constructor(speechService) { // Recibimos speechService si hace falta, aunque aquí procesamos texto
         this.inputs = {
             name: document.getElementById('med-name'),
             frequency: document.getElementById('med-frequency'),
             time: document.getElementById('med-time'),
-            date: document.getElementById('med-date')
+            date: document.getElementById('med-date'),
+            dose: document.getElementById('med-dose') // Agregamos dosis al mapeo
         };
     }
 
@@ -12,7 +13,7 @@ export class MedicationFormAssistant {
      * Procesa el texto completo del dictado
      */
     fillFromText(fullText) {
-        if (!fullText) return { success: false, missing: [] };
+        if (!fullText) return { success: false, missing: ['Todo'] };
 
         // 1. Normalizar texto
         let processingText = fullText.toLowerCase();
@@ -33,7 +34,12 @@ export class MedicationFormAssistant {
             data.date = dateResult.value;
             processingText = dateResult.remainingText;
         } else {
-            data.date = new Date().toISOString().split('T')[0];
+            // Si no dicen fecha, por defecto HOY, pero validaremos si el usuario quiere ser estricto
+            // Para este caso, lo llenamos pero podríamos marcarlo como pendiente si quisieras obligar a decirlo.
+            // Dejaremos la fecha actual por defecto para facilitar la UX, salvo que esté vacía en el input.
+            if (!this.inputs.date.value) {
+                data.date = new Date().toISOString().split('T')[0];
+            }
         }
 
         // --- PASO C: EXTRAER Y BORRAR FRECUENCIA ---
@@ -43,21 +49,17 @@ export class MedicationFormAssistant {
             processingText = freqResult.remainingText;
         }
 
-        // --- PASO D: LIMPIEZA FINAL (NOMBRE Y BASURA) ---
-        let finalName = processingText
-            // 1. Verbos y palabras de comando
-            .replace(/agregar|nuevo|recordatorio|medicamento|tomar|iniciar|el dia|la fecha/g, '')
-            // 2. CONECTORES DE FRECUENCIA SOBRANTES (Aquí estaba el error)
+        // --- PASO D: LIMPIEZA FINAL (NOMBRE Y DOSIS) ---
+        // Intentamos inferir que lo que queda es el nombre y la dosis
+        let remaining = processingText
+            .replace(/agregar|nuevo|recordatorio|medicamento|tomar|iniciar|el dia|la fecha|hora|inicio/g, '')
             .replace(/con\s+frecuencia\s+de|con\s+frecuencia|frecuencia\s+de|frecuencia|cada/g, '')
-            // 3. Limpieza general
             .replace(/\s+/g, ' ')
             .trim();
 
-        if (finalName.length > 0) {
-            finalName = finalName.charAt(0).toUpperCase() + finalName.slice(1);
+        if (remaining.length > 0) {
+            data.name = remaining.charAt(0).toUpperCase() + remaining.slice(1);
         }
-
-        data.name = finalName;
 
         // --- LLENAR FORMULARIO ---
         if (data.name) this.inputs.name.value = data.name;
@@ -65,16 +67,20 @@ export class MedicationFormAssistant {
         if (data.date) this.inputs.date.value = data.date;
         if (data.frequency) this.inputs.frequency.value = data.frequency;
 
-        // --- VALIDACIÓN ---
+        // --- VALIDACIÓN ESTRICTA ---
         const missing = [];
+
+        // Validamos si los inputs tienen valor (ya sea por el dictado o porque el usuario lo puso antes)
+        if (!this.inputs.name.value) missing.push('Nombre del medicamento');
         if (!this.inputs.time.value) missing.push('Hora de inicio');
         if (!this.inputs.frequency.value) missing.push('Frecuencia');
+        if (!this.inputs.date.value) missing.push('Fecha de inicio');
 
-        return { success: true, missing: missing };
+        return { success: missing.length === 0, missing: missing };
     }
 
     // ---------------------------------------------------------
-    // HELPERS DE EXTRACCIÓN
+    // HELPERS DE EXTRACCIÓN (Sin cambios mayores, funcionan bien)
     // ---------------------------------------------------------
 
     extractTime(text) {
@@ -100,10 +106,7 @@ export class MedicationFormAssistant {
 
     extractDate(text) {
         const today = new Date();
-
-        // 1. FECHAS NUMÉRICAS (Ej: "18 del 11")
         const numericDateRegex = /(?:el\s+)?(\d{1,2})(?:\s+(?:de|del)\s+|\s*[\/\-]\s*)(\d{1,2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:(?:\s+(?:de|del)\s+|\s*[\/\-]\s*)(\d{2,4}))?/i;
-
         const numericMatch = text.match(numericDateRegex);
 
         if (numericMatch) {
@@ -125,16 +128,10 @@ export class MedicationFormAssistant {
                 const yyyy = targetDate.getFullYear();
                 const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(targetDate.getDate()).padStart(2, '0');
-
-                return {
-                    found: true,
-                    value: `${yyyy}-${mm}-${dd}`,
-                    remainingText: text.replace(numericMatch[0], ' ')
-                };
+                return { found: true, value: `${yyyy}-${mm}-${dd}`, remainingText: text.replace(numericMatch[0], ' ') };
             }
         }
 
-        // 2. PALABRAS CLAVE ("mañana", "hoy")
         if (text.includes('mañana')) {
             const d = new Date(today); d.setDate(today.getDate() + 1);
             return { found: true, value: d.toISOString().split('T')[0], remainingText: text.replace('mañana', ' ') };
@@ -143,56 +140,38 @@ export class MedicationFormAssistant {
             return { found: true, value: today.toISOString().split('T')[0], remainingText: text.replace('hoy', ' ') };
         }
 
-        // 3. DÍAS DE LA SEMANA
         const days = ['domingo', 'lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado'];
         for (let i = 0; i < days.length; i++) {
             if (text.includes(days[i])) {
                 const currentDay = today.getDay();
                 let daysToAdd = i - currentDay;
                 if (daysToAdd <= 0) daysToAdd += 7;
-
                 const d = new Date(today); d.setDate(today.getDate() + daysToAdd);
                 const regex = new RegExp(`(?:el\\s+)?${days[i]}`, 'i');
                 return { found: true, value: d.toISOString().split('T')[0], remainingText: text.replace(regex, ' ') };
             }
         }
-
         return { found: false, remainingText: text };
     }
 
     extractFrequency(text) {
         let freq = null;
         let matchRegex = null;
-
-        // Prefijo opcional para "comerse" los conectores junto con la hora
         const prefix = "(?:con\\s+frecuencia\\s+(?:de\\s+)?|cada\\s+)?";
 
         if (text.includes('8 hora') || text.includes('8 hrs')) {
-            freq = '480';
-            matchRegex = new RegExp(prefix + "8\\s*(?:horas?|hrs)", "i");
-        }
-        else if (text.includes('12 hora') || text.includes('12 hrs')) {
-            freq = '720';
-            matchRegex = new RegExp(prefix + "12\\s*(?:horas?|hrs)", "i");
-        }
-        else if (text.includes('24 hora') || text.includes('una vez') || text.includes('diario')) {
-            freq = '1440';
-            matchRegex = new RegExp(prefix + "(?:24\\s*(?:horas?|hrs)|una\\s+vez(?:\\s+al\\s+d[ií]a)?|diario)", "i");
-        }
-        else if (text.includes('minuto') || text.includes('prueba')) {
-            freq = '1';
-            matchRegex = new RegExp(prefix + "(?:1\\s+)?(?:minuto|prueba)", "i");
+            freq = '480'; matchRegex = new RegExp(prefix + "8\\s*(?:horas?|hrs)", "i");
+        } else if (text.includes('12 hora') || text.includes('12 hrs')) {
+            freq = '720'; matchRegex = new RegExp(prefix + "12\\s*(?:horas?|hrs)", "i");
+        } else if (text.includes('24 hora') || text.includes('una vez') || text.includes('diario')) {
+            freq = '1440'; matchRegex = new RegExp(prefix + "(?:24\\s*(?:horas?|hrs)|una\\s+vez(?:\\s+al\\s+d[ií]a)?|diario)", "i");
+        } else if (text.includes('minuto') || text.includes('prueba')) {
+            freq = '1'; matchRegex = new RegExp(prefix + "(?:1\\s+)?(?:minuto|prueba)", "i");
         }
 
         if (freq && matchRegex) {
             const match = text.match(matchRegex);
-            if (match) {
-                return {
-                    found: true,
-                    value: freq,
-                    remainingText: text.replace(match[0], ' ')
-                };
-            }
+            if (match) return { found: true, value: freq, remainingText: text.replace(match[0], ' ') };
         }
         return { found: false, remainingText: text };
     }
@@ -208,10 +187,8 @@ export class MedicationFormAssistant {
             'treinta': '30', 'cuarenta': '40', 'cincuenta': '50',
             'media': '30', 'cuarto': '15'
         };
-
         let newText = text;
         newText = newText.replace(/y\s+media/g, '30').replace(/y\s+cuarto/g, '15');
-
         for (const [word, number] of Object.entries(map)) {
             const regex = new RegExp(`\\b${word}\\b`, 'gi');
             newText = newText.replace(regex, number);
